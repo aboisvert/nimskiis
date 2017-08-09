@@ -1,0 +1,8 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+	"nim.buildOnSave": false,
+	"nim.lintOnSave": true,
+	"nim.project": ["src/nimskiis.nim"],
+	"nim.test-project": "tests/",
+	"nim.licenseString": "# NimSkiis - Copyright 2017 by Alex Boisvert\n\n"
+}

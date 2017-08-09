@@ -1,0 +1,58 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    // nimskiis
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "taskName": "nimc",
+            "command": "nim",
+            "args": [
+                "c",
+                "-r",
+                "module.nim"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell"
+        },
+        {
+            "taskName": "nimble-install",
+            "command": "nimble",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell"
+        },
+        {
+            "taskName": "test",
+            "command": "nimble",
+            "args": [
+                "tests"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell"
+        },
+        {
+            "taskName": "build",
+            "command": "nimble",
+            "args": [
+                "lib"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
