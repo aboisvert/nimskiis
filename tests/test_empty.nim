@@ -1,5 +1,5 @@
 import
-  ../src/nimskiis,
+  nimskiis,
   unittest
 
 suite "Empty Skiis":
