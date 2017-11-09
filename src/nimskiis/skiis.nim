@@ -65,3 +65,22 @@ proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): voi
   for i in 0 ..< context.parallelism:
     createThread[ParForeachParams[T]](threads[i], parForeachExecutor, ParForeachParams[T](skiis: skiis, op: op))
   joinThreads(threads[0 ..< context.parallelism])
+
+#--- parForeach ---
+
+type ParForeachParams[T] = object
+skiis: Skiis[T]
+op: proc (t: T): void
+
+proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
+var n = params.skiis.next()
+while n.isSome:
+  params.op(n.get)
+  n = params.skiis.next()
+
+proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void): void =
+var threads: array[0..255, Thread[ParForeachParams[T]]] # can't use seq
+for i in 0 ..< context.parallelism:
+  createThread[ParForeachParams[T]](threads[i], parForeachExecutor, ParForeachParams[T](skiis: skiis, op: op))
+joinThreads(threads[0 ..< context.parallelism])
+
