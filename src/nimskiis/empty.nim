@@ -1,14 +1,17 @@
 import skiis
 
-type EmptySkiis[T] = ref object of Skiis[T]
+type EmptySkiis[T] = object
 
-proc initEmptySkiis*[T](): Skiis[T] =
-  let newSkiis = new EmptySkiis[T]
-  result = newSkiis
-
-method next*[T](skiis: EmptySkiis[T]): Option[T] =
+proc next[T](this: EmptySkiis[T]): Option[T] =
   result = none(T)
 
-method take*[T](skiis: EmptySkiis[T], n: int): seq[T] =
+proc take[T](this: EmptySkiis[T], n: int): seq[T] =
   result = newSeq[T]()
+
+proc initEmptySkiis*[T](): Skiis[T] =
+  let this = EmptySkiis[T]()
+  result = new Skiis[T]
+  result.methods.next = proc(): Option[T] = this.next()
+  result.methods.take = proc(n: int): seq[T] = this.take(n)
+
 

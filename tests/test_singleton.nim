@@ -20,8 +20,8 @@ suite "Singleton":
     check:
       s.take(10) == @[42]
       s.take(10) == newSeq[int]()
-      
 
 
 
-    
+
+
