@@ -37,6 +37,19 @@ template declareSkiis*(typ: typedesc) =
     #echo "deep copy " & $cast[int](unsafeAddr(skiis.methods))
     result = skiis
 
+proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
+  if n <= 0: return newSeq[T]()
+  result = newSeqOfCap[T](n)
+  var n = n
+  var x = next()
+  while (x.isSome):
+    result.add(x.get)
+    dec n
+    if n == 0: return
+    x = next()
+
+#--- parForeach ---
+
 type ParForeachParams[T] = object
   skiis: Skiis[T]
   op: proc (t: T): void
@@ -52,14 +65,3 @@ proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): voi
   for i in 0 ..< context.parallelism:
     createThread[ParForeachParams[T]](threads[i], parForeachExecutor, ParForeachParams[T](skiis: skiis, op: op))
   joinThreads(threads[0 ..< context.parallelism])
-
-proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
-  if n <= 0: return newSeq[T]()
-  result = newSeqOfCap[T](n)
-  var n = n
-  var x = next()
-  while (x.isSome):
-    result.add(x.get)
-    dec n
-    if n == 0: return
-    x = next()
