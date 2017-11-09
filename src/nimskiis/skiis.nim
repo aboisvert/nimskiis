@@ -32,17 +32,6 @@ template lockInitWith*(a: var Lock, body: untyped) =
   {.locks: [a].}:
     body
 
-proc takeOld*[T](skiis: Skiis, n: int): seq[T] =
-  result = newSeqOfCap[T](n)
-  if n <= 0: return newSeq[T]()
-  var next = skiis.next()
-  var n = n
-  while next.isSome:
-    result.add(next.get)
-    n -= 1
-    if n == 0: return result
-    else: next = skiis.next()
-
 template declareSkiis*(typ: typedesc) =
   proc `=deepCopy`*(skiis: Skiis[typ]): Skiis[typ] =
     #echo "deep copy " & $cast[int](unsafeAddr(skiis.methods))
