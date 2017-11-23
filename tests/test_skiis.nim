@@ -1,33 +1,47 @@
 import
   test_common,
-  lockedlist,
   os
 
+template declareBuffer*(typ: typedesc) =
+  proc `=deepCopy`*(buffer: Buffer[typ]): Buffer[typ] =
+    echo "deep copy buffer: " & $cast[int](unsafeAddr(buffer))
+    result = buffer
+  
 suite "Skiis":
 
   test "parForeach (1 to 10)":
     let s = countSkiis(1, 10)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    var sharedList = initSharedList[int]()
+    let buffer = newBuffer[int]()
     s.parForeach(context) do (x: int) -> void:
-      sharedList.add(x)
+      buffer.push(x)
     check:
-      foldl(sharedList, a + b, 0.int64).int64 == 55
+      buffer.toSeq.sum == 55
 
   test "parForeach (1 to 1000)":
     let s = countSkiis(1, 1000)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    var sharedList = initSharedList[int]()
+    let buffer = newBuffer[int]()
     s.parForeach(context) do (x: int) -> void:
-      sharedList.add(x)
+      buffer.push(x)
     check:
-      foldl(sharedList, a + b, 0.int64) == 500500.int64
+      buffer.toSeq.sum == 500500.int64
 
     test "parForeach (1 to 1000) parallelism=2":
       let s = countSkiis(1, 1000)
       let context = SkiisContext(parallelism: 2, queue: 1, batch: 1)
-      var sharedList = initSharedList[int]()
+      let buffer = newBuffer[int]()
       s.parForeach(context) do (x: int) -> void:
-        sharedList.add(x)
+        buffer.push(x)
+      let sum = buffer.toSeq.sum
+      check: 
+        sum == 500500.int64
+
+    test "parMap (1 to 10)":
+      let s = countSkiis(1, 3)
+      let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+      let skiis = s.parMap(context) do (x: int) -> int:
+        x + 1
+      let result = skiis.toSet
       check:
-        foldl(sharedList, a + b, 0.int64) == 500500.int64
+        result == @[2, 3, 4].toSet

@@ -1,5 +1,5 @@
 import
-  skiis,
+  skiisops,
   locks
 
 type
@@ -23,4 +23,3 @@ proc skiisFromIterator*[T](iter: iterator(): T): Skiis[T] =
   result = new Skiis[T]
   result.methods.next = proc(): Option[T] = this.next()
   result.methods.take = proc(n: int): seq[T] = genericTake(proc(): Option[T] = this.next(), n)
-

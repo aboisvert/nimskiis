@@ -17,10 +17,8 @@ suite "IteratorSkiis":
     for i in 0..responses.len-1:
       responses[i] = spawn consumeSum(cast[Skiis[int]](s))
     let results: seq[Sum] = responses.mapIt(Sum, ^it)
-    let total = foldl(results, a + b.sum, 0.int64)
-
     check:
-      total == 5_000_050_000.int64
+      results.sum == 5_000_050_000.int64
 
     #for r in results:
     #  echo r.consumed

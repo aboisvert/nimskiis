@@ -1,14 +1,19 @@
 
 import
   nimskiis/skiis,
-  nimskiis/empty,
-  nimskiis/singleton,
+  nimskiis/skiisops,
+  nimskiis/bufferskiis,
+  nimskiis/emptyskiis,
+  nimskiis/iteratorskiis,
   nimskiis/seqskiis,
-  nimskiis/iteratorskiis
+  nimskiis/singleton
 
 export
   skiis,
-  empty,
-  singleton,
+  skiisops,
+  bufferskiis,
+  emptyskiis,
+  iteratorskiis,
   seqskiis,
-  iteratorskiis
+  singleton
+

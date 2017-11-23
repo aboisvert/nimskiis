@@ -1,8 +1,6 @@
 import
   test_common
 
-declareSkiis(Sum)
-
 suite "SeqSkiis":
 
   test "create empty seqskiis":

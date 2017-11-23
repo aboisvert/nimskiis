@@ -1,17 +1,18 @@
 import
   nimskiis,
+  nimskiis/buffer,
   unittest,
   sequtils,
   threadpool,
-  lockedlist
+  sets
 
 export
   nimskiis,
+  buffer,
   unittest,
   sequtils,
-  threadpool
-
-declareSkiis(int)
+  threadpool,
+  sets
 
 type Sum* = object
   sum*: int64
@@ -19,6 +20,13 @@ type Sum* = object
 
 proc sum*(xs: openarray[Sum]): int64 =
   foldl(xs, a + b.sum, 0.int64)
+
+proc sum*(xs: openarray[int]): int64 =
+  foldl(xs, a + b, 0.int64)
+
+proc sum*(xs: iterator(): int {.closure.}): int64 =
+  for x in xs():
+    result += x
 
 proc countIterator(a, b: int): iterator (): int =
   result = iterator (): int =
@@ -28,11 +36,9 @@ proc countIterator(a, b: int): iterator (): int =
       inc x
 
 proc consumeSum*(skiis: Skiis[int]): Sum =
-  var n = skiis.next()
-  while n.isSome:
-    result.sum += n.get
+  skiis.foreach(n):
+    result.sum += n
     result.consumed += 1
-    n = skiis.next()
 
 proc countSkiis*(i: int, j: int): Skiis[int] =
    skiisFromIterator[int](countIterator(i, j))
@@ -44,7 +50,7 @@ proc sliceToSeq*[T](s: Slice[T]): seq[T] =
     result[i] = x
     inc(i)
 
-proc toSeq*[T](s: var SharedList[T]): seq[T] =
-  result = newSeq[T]()
-  for x in s.items:
-    result.add(x)
+proc toSet*[T](skiis: Skiis[T]): HashSet[T] =
+  init(result)
+  skiis.foreach(n):
+    result.incl(n)
