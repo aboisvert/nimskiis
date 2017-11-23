@@ -1,5 +1,4 @@
 import
-  interfaced,
   options,
   locks,
   os
@@ -32,11 +31,6 @@ template lockInitWith*(a: var Lock, body: untyped) =
   {.locks: [a].}:
     body
 
-template declareSkiis*(typ: typedesc) =
-  proc `=deepCopy`*(skiis: Skiis[typ]): Skiis[typ] =
-    #echo "deep copy " & $cast[int](unsafeAddr(skiis.methods))
-    result = skiis
-
 proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
   if n <= 0: return newSeq[T]()
   result = newSeqOfCap[T](n)
@@ -48,39 +42,14 @@ proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
     if n == 0: return
     x = next()
 
-#--- parForeach ---
+template foreach*[T](skiis: Skiis[T], name, body: untyped) =  
+  var next = skiis.next()
+  while (next.isSome):
+    let name = next.get
+    body
+    next = skiis.next()
 
-type ParForeachParams[T] = object
-  skiis: Skiis[T]
-  op: proc (t: T): void
-
-proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
-  var n = params.skiis.next()
-  while n.isSome:
-    params.op(n.get)
-    n = params.skiis.next()
-
-proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void): void =
-  var threads: array[0..255, Thread[ParForeachParams[T]]] # can't use seq
-  for i in 0 ..< context.parallelism:
-    createThread[ParForeachParams[T]](threads[i], parForeachExecutor, ParForeachParams[T](skiis: skiis, op: op))
-  joinThreads(threads[0 ..< context.parallelism])
-
-#--- parForeach ---
-
-type ParForeachParams[T] = object
-skiis: Skiis[T]
-op: proc (t: T): void
-
-proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
-var n = params.skiis.next()
-while n.isSome:
-  params.op(n.get)
-  n = params.skiis.next()
-
-proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void): void =
-var threads: array[0..255, Thread[ParForeachParams[T]]] # can't use seq
-for i in 0 ..< context.parallelism:
-  createThread[ParForeachParams[T]](threads[i], parForeachExecutor, ParForeachParams[T](skiis: skiis, op: op))
-joinThreads(threads[0 ..< context.parallelism])
-
+proc toSeq*[T](skiis: Skiis[T]): seq[T] =
+  result = newSeq[T]()
+  skiis.foreach(n):
+    result.add(n)
