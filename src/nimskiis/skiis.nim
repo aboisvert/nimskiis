@@ -42,7 +42,7 @@ proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
     if n == 0: return
     x = next()
 
-template foreach*[T](skiis: Skiis[T], name, body: untyped) =  
+template foreach*[T](skiis: Skiis[T], name, body: untyped) =
   var next = skiis.next()
   while (next.isSome):
     let name = next.get

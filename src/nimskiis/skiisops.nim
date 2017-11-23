@@ -19,10 +19,10 @@ proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
 proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void): void =
   var threads: array[0..255, Thread[ParForeachParams[T]]] # can't use seq
   for i in 0 ..< context.parallelism:
-    createThread[ParForeachParams[T]](threads[i], parForeachExecutor, 
+    createThread[ParForeachParams[T]](threads[i], parForeachExecutor,
       ParForeachParams[T](skiis: unsafeAddr(skiis), op: op))
   joinThreads(threads[0 ..< context.parallelism])
-  
+
 #--- parMap ---
 
 type ParMapParams[T, U] = object
@@ -33,11 +33,11 @@ type ParMapParams[T, U] = object
 proc parMapExecutor[T, U](params: ParMapParams[T, U]) {.thread.} =
   let input = params.input
   let op = params.op
-  
+
   input[].foreach(n):
     let result = op(n)
     params.buffer[].push(result)
-    
+
 proc parMap*[T, U](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): U): (Skiis[U]) =
   var threads: array[0..255, Thread[ParMapParams[T, U]]] # can't use seq
   let (output, buffer) = newBufferSkiis[U]()

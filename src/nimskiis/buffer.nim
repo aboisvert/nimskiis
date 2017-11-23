@@ -1,3 +1,14 @@
+
+# Concurrent (thread-safe) unbounded buffer.
+#
+# Basically a multable seq, with push() and pop() semantics.
+#
+# NOTE:  This is an unordered collection.  push() may not append at the end of the buffer.
+#        In that sense, Buffer is more like an unordered bag.
+#
+# push() appends "towards" the end of the bag
+# pop() removes the current first element of the bag.
+
 import
   options,
   locks
@@ -30,13 +41,13 @@ proc disposeBuffer[T](t: Buffer[T]) =
     t.head = nil
     t.tail = nil
   deinitLock t.lock
-  
+
 proc newBuffer*[T](): Buffer[T] =
   new(result, disposeBuffer[T])
   initLock result.lock
   result.head = nil
   result.tail = nil
-  
+
 proc pop*[T](this: Buffer[T]): Option[T] =
   withLock(this):
     template head: Node[T] = this.head
@@ -58,7 +69,7 @@ iterator items*[T](this: Buffer[T]): int =
   while (x.isSome):
     yield x.get
     x = this.pop()
-  
+
 proc push*[T](this: Buffer[T]; y: T): void =
   withLock(this):
     var node = this.tail
@@ -70,15 +81,15 @@ proc push*[T](this: Buffer[T]; y: T): void =
       if this.tail != nil: this.tail.next = node
       this.tail = node
       if this.head == nil: this.head = node
-    if node.last < ElemsPerNode: 
+    if node.last < ElemsPerNode:
       node.elems[node.last] = y
       inc(node.last)
     elif node.first > 0:
-      dec(node.first) 
+      dec(node.first)
       node.elems[node.first] = y
     else:
       raise newException(SystemError, "WTF!")
-   
+
 proc toSeq*[T](buf: Buffer[T]): seq[T] =
   result = newSeq[T]()
   for x in buf.items:

@@ -6,7 +6,7 @@ template declareBuffer*(typ: typedesc) =
   proc `=deepCopy`*(buffer: Buffer[typ]): Buffer[typ] =
     echo "deep copy buffer: " & $cast[int](unsafeAddr(buffer))
     result = buffer
-  
+
 suite "Skiis":
 
   test "parForeach (1 to 10)":
@@ -34,7 +34,7 @@ suite "Skiis":
       s.parForeach(context) do (x: int) -> void:
         buffer.push(x)
       let sum = buffer.toSeq.sum
-      check: 
+      check:
         sum == 500500.int64
 
     test "parMap (1 to 10)":
