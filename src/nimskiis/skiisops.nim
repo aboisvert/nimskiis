@@ -19,6 +19,9 @@ proc asSkiis*[T](queue: BlockingQueue[T]): Skiis[T] =
   result.methods.take = proc(n: int): seq[T] = genericTake(proc(): Option[T] = queue.pop(), n)
   result.methods.dispose = proc(): void = discard # BlockingQueue has is own finalizer
 
+converter asPtr*[T](skiis: Skiis[T]): SkiisPtr[T] =
+  skiis[].addr
+
 #--- parForeach ---
 
 type
