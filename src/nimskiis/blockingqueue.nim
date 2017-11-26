@@ -121,7 +121,6 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
   debug("pushing " & $y & " on: " & $this, this)
   withLock(this):
     if this.closed:
-      echo "Cannot push to a closed BlockingQueue"
       raise newException(SystemError, "Cannot push to a closed BlockingQueue")
     while this.size >= this.maxSize and not this.closed:
       debug("waiting to push", this)
@@ -129,7 +128,6 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
       debug("after waiting to push", this)
     debug("nonFull", this)
     if this.closed:
-      echo "Cannot push to a closed BlockingQueue"
       raise newException(SystemError, "Cannot push to a closed BlockingQueue")
 
     var node = this.tail
@@ -160,8 +158,6 @@ proc toSeq*[T](buf: BlockingQueue[T]): seq[T] =
     result.add(x)
 
 proc close*[T](this: BlockingQueue[T]): void =
-  echo "Closing " & addressRef(this)
-  echo "Closing " & $this
   withLock(this):
     this.closed = true
     this.nonEmpty.signal()
