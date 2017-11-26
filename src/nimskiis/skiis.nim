@@ -18,7 +18,7 @@ type
   Skiis*[T] = ref SkiisObj[T]
 
   SkiisPtr*[T] = ptr SkiisObj[T]
-  
+
   SkiisContext* = object
     parallelism*: int
     queue*: int

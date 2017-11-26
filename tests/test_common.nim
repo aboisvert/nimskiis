@@ -31,7 +31,7 @@ proc sum*(xs: iterator(): int {.closure.}): int64 =
   for x in xs():
     result += x
 
-proc countIterator(a, b: int): iterator (): int =
+proc countIterator*(a, b: int): iterator (): int =
   result = iterator (): int =
     var x = a
     while x <= b:
@@ -57,3 +57,8 @@ proc toSet*[T](skiis: Skiis[T]): HashSet[T] =
   init(result)
   skiis.foreach(n):
     result.incl(n)
+
+proc toSet*[T](iter: iterator(): T): HashSet[T] =
+  init(result)
+  for x in iter():
+    result.incl(x)

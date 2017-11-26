@@ -16,7 +16,7 @@ suite "IteratorSkiis":
     var responses = newSeq[FlowVar[Sum]](4)
     for i in 0..responses.len-1:
       responses[i] = spawn consumeSum(s)
-    let results: seq[Sum] = responses.mapIt(Sum, ^it)
+    let results: seq[Sum] = responses.mapIt(^it)
     check:
       results.sum == 5_000_050_000.int64
 
