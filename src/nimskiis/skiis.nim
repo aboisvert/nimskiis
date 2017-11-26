@@ -8,10 +8,11 @@ export
   locks
 
 type
-  SkiisObj*[T] = object
+  SkiisObj[T] = object
     methods*: tuple[
       next: proc(): Option[T],
-      take: proc(n: int): seq[T]
+      take: proc(n: int): seq[T],
+      dispose: proc(): void
     ]
 
   Skiis*[T] = ref SkiisObj[T]
@@ -27,6 +28,9 @@ proc next*[T](skiis: Skiis[T]): Option[T] =
 
 proc take*[T](skiis: Skiis[T], n: int): seq[T] =
   skiis.methods.take(n)
+
+proc dispose*[T](skiis: Skiis[T]) =
+  skiis.methods.dispose()
 
 template lockInitWith*(a: var Lock, body: untyped) =
   initLock(a)

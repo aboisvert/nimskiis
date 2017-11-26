@@ -8,7 +8,7 @@ type
     maxValue: int
     lock: Lock
     maxValueReached: Cond
-  
+
 proc newCounter*(maxValue: int): Counter =
   new(result)
   result.value = 0
@@ -19,7 +19,7 @@ proc newCounter*(maxValue: int): Counter =
 proc dispose*(this: Counter): void =
   deinitLock(this.lock)
   deinitCond(this.maxValueReached)
-  
+
 proc await*(this: Counter) =
   acquire(this.lock)
   if this.value < this.maxValue:

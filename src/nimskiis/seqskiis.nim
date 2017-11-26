@@ -22,7 +22,7 @@ proc initSkiis*[T](values: varargs[T]): Skiis[T] =
   lockInitWith this.lock:
     this.values = @values
     this.position = 0
-  result = new Skiis[T]
+  new(result, dispose[T])
   result.methods.next = proc(): Option[T] = this.next()
   result.methods.take = proc(n: int): seq[T] = genericTake(proc(): Option[T] = this.next(), n)
-
+  result.methods.dispose = proc(): void = discard

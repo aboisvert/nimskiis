@@ -10,8 +10,9 @@ proc take[T](this: EmptySkiis[T], n: int): seq[T] =
 
 proc initEmptySkiis*[T](): Skiis[T] =
   let this = EmptySkiis[T]()
-  result = new Skiis[T]
+  new(result, dispose[T])
   result.methods.next = proc(): Option[T] = this.next()
   result.methods.take = proc(n: int): seq[T] = this.take(n)
+  result.methods.dispose = proc(): void = discard
 
 
