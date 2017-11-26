@@ -1,6 +1,7 @@
 import
   nimskiis,
   nimskiis/buffer,
+  nimskiis/blockingqueue,
   unittest,
   sequtils,
   threadpool,
@@ -9,6 +10,7 @@ import
 export
   nimskiis,
   buffer,
+  blockingqueue,
   unittest,
   sequtils,
   threadpool,

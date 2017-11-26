@@ -8,11 +8,13 @@ export
   locks
 
 type
-  Skiis*[T] = ref object
+  SkiisObj*[T] = object
     methods*: tuple[
       next: proc(): Option[T],
       take: proc(n: int): seq[T]
     ]
+
+  Skiis*[T] = ref SkiisObj[T]
 
   SkiisContext* = object
     parallelism*: int
