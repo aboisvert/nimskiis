@@ -24,11 +24,15 @@ type Sum* = object
 proc sum*(xs: openarray[Sum]): int64 =
   foldl(xs, a + b.sum, 0.int64)
 
-proc sum*(xs: openarray[int]): int64 =
-  foldl(xs, a + b, 0.int64)
+#proc sum*(xs: openarray[int]): int64 =
+#  foldl(xs, a + b, 0.int64)
 
 proc sum*(xs: iterator(): int {.closure.}): int64 =
   for x in xs():
+    result += x
+
+proc sum*[T](xs: Slice[T]): T =
+  for x in xs.items:
     result += x
 
 proc countIterator*(a, b: int): iterator (): int =

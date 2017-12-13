@@ -1,4 +1,4 @@
-import test_common
+import test_common, math
 
 suite "Skiis":
 
@@ -75,3 +75,34 @@ suite "Skiis":
       let expected = sliceToSeq(1 .. 1000).mapIt($it).toSet
       check:
         result == expected
+
+  test "parFlatMap @[1, 3, 5])":
+    let s: Skiis[int] = initSkiis(@[1, 3, 5])
+    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+    let skiis = s.parFlatMap(context) do (x: int) -> seq[int]:
+      @[x, x + 1]
+    let result = skiis.toSeq
+    check:
+      result.len == 6
+      result.toSet == @[1, 2, 3, 4, 5, 6].toSet
+
+  test "parReduce @[1, 3, 5])":
+    let s: Skiis[int] = initSkiis(@[1, 3, 5])
+    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+    let result = s.parReduce(context) do (x: int, y: int) -> int: x + y
+    check:
+      result == 9
+
+  test "parSum (1 to 10,000)":
+    let s: Skiis[int] = countSkiis(1, 10000)
+    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+    let result = s.parSum(context)
+    check:
+      result == (1 .. 10000).sum
+
+  test "parFilter @[1, 3, 5])":
+    let s: Skiis[int] = initSkiis(@[1, 2, 3, 4, 5])
+    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+    let result = s.parFilter(context) do (x: int) -> bool: (x mod 2 == 0)
+    check:
+      result.toSeq == @[2, 4]

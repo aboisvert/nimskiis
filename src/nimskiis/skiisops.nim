@@ -64,25 +64,22 @@ proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): voi
     counter.dispose()
     deallocShared(params)
 
-#--- parMap ---
+#--- stage: input (Skiis[T]) >> operation (proc) >> output (BlockingQueue[U]) ---
 
 type
-  ParMapParamsObj[T, U] = object
+  StageParamsObj[INPUT, OUTPUT] = object
     context: SkiisContext
-    input: Skiis[T]
-    op: proc (t: T): U
-    output: BlockingQueue[U]
+    input: Skiis[INPUT]
+    output: BlockingQueue[OUTPUT]
     executorsCompleted: Counter
 
-  ParMapParams[T, U] = ptr ParMapParamsObj[T, U] # ptr to avoid deep copy
+  StageParams[INPUT, OUTPUT] = ptr StageParamsObj[INPUT, OUTPUT] # ptr to avoid deep copy
 
-proc parMapExecutor[T, U](params: ParMapParams[T, U]) {.gcsafe.} =
-  params.input.foreach(n):
-    let result = params.op(n)
-    params.output.push(result)
+proc stageExecutor[T, U](params: StageParams[T, U], op: proc (params: StageParams[T, U]): void): void {.gcsafe.} =
+  op(params)
 
   let completed = params.executorsCompleted.inc()
-  debug("parMapExecutor done pushing; count=" & $completed, params.input)
+  #debug("parMapExecutor done pushing; count=" & $completed, params.input)
   if completed >= params.context.parallelism:
     params.output.close()
     GC_unref(params.input)
@@ -90,22 +87,80 @@ proc parMapExecutor[T, U](params: ParMapParams[T, U]) {.gcsafe.} =
     GC_unref(params.executorsCompleted)
     deallocShared(params)
 
-proc parMap*[T, U](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): U): Skiis[U] =
+proc spawnStage*[T, U](input: Skiis[T], context: SkiisContext, op: proc (params: StageParams[T, U]): void): Skiis[U] =
   let queue = newBlockingQueue[U](context.queue)
   let executorsCompleted = newCounter(context.parallelism)
-  let params = allocShared0T(ParMapParamsObj[T, U])
-  GC_ref(skiis)
+  let params = allocShared0T(StageParamsObj[T, U])
+  GC_ref(input)
   GC_ref(queue)
   GC_ref(executorsCompleted)
-  params.input = skiis
-  params.op = op
+  params.input = input
   params.output = queue
   params.executorsCompleted = executorsCompleted
   params.context = context
 
-  # spawn the mappers
+  # spawn executors
   for i in 0 ..< context.parallelism:
-    spawn parMapExecutor(params)
+    spawn stageExecutor(params, op)
 
   # TODO: figure out how queue gets dealloc'ated
   result = asSkiis[U](queue)
+
+#--- parMap ---
+
+proc parMapStage[T, U](op: proc (t: T): U): (proc (params: StageParams[T, U]): void {.closure.}) =
+  result = proc (params: StageParams[T, U]): void {.closure.} =
+    params.input.foreach(n):
+      let output = op(n)
+      params.output.push(output)
+
+proc parMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): U): Skiis[U] =
+  let stageOp: proc (params: StageParams[T, U]): void {.closure.} = parMapStage(op)
+  spawnStage[T, U](input, context, stageOp)
+
+#--- parFlatMap ---
+
+proc parFlatMapStage[T, U](op: proc (t: T): seq[U]): (proc (params: StageParams[T, U]): void {.closure.}) =
+  result = proc (params: StageParams[T, U]): void {.closure.} =
+    params.input.foreach(n):
+      let output = op(n)
+      for o in output:
+        params.output.push(o)
+
+proc parFlatMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): seq[U]): Skiis[U] =
+  spawnStage[T, U](input, context, parFlatMapStage(op))
+
+#--- parFilter ---
+
+proc parFilterStage[T](op: proc (t: T): bool): (proc (params: StageParams[T, T]): void {.closure.}) =
+  result = proc (params: StageParams[T, T]): void {.closure.} =
+    params.input.foreach(n):
+      if op(n):
+        params.output.push(n)
+
+proc parFilter*[T](input: Skiis[T], context: SkiisContext, op: proc (t: T): bool): Skiis[T] =
+  spawnStage[T, T](input, context, parFilterStage(op))
+
+#--- parReduce ---
+
+proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T]): void {.closure.}) =
+  result = proc (params: StageParams[T, T]): void {.closure.} =
+    let n = params.input.next()
+    if n.isNone: return
+    var current: T = n.get()
+    params.input.foreach(n):
+      current = op(current, n)
+    params.output.push(current)
+
+proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T): T =
+  let reducers = spawnStage[T, T](input, context, parReduceStage(op))
+  let n = reducers.next()
+  if n.isNone: raise newException(SystemError, "No data to reduce")
+  var current: T = n.get()
+  reducers.foreach(n):
+    current = op(current, n)
+  result = current
+
+proc parSum*[T](input: Skiis[T], context: SkiisContext): T =
+  input.parReduce(context) do (x: int, y: int) -> int:
+    x + y
