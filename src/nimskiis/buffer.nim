@@ -31,16 +31,18 @@ template withLock(t, x: untyped) =
   x
   release(t.lock)
 
-proc disposeBuffer[T](t: Buffer[T]) =
-  withLock(t):
-    var node = t.head
-    while node != nil:
-      let next = node.next
-      deallocShared(node)
-      node = next
-    t.head = nil
-    t.tail = nil
-  deinitLock t.lock
+template foreachNode[T](b: Buffer[T], varName, code: untyped) =
+  while (var varName = b.head; varName != nil):
+    let next = varName.next
+    code
+    varName = next
+
+proc disposeBuffer[T](b: Buffer[T]) =
+  withLock(b):
+    b.foreachNode(node): deallocShared(node)
+    b.head = nil
+    b.tail = nil
+  deinitLock b.lock
 
 proc newBuffer*[T](): Buffer[T] =
   new(result, disposeBuffer[T])
@@ -66,7 +68,7 @@ proc pop*[T](this: Buffer[T]): Option[T] =
 
 iterator items*[T](this: Buffer[T]): int =
   var x = this.pop()
-  while (x.isSome):
+  while x.isSome:
     yield x.get
     x = this.pop()
 
@@ -101,10 +103,8 @@ proc `$`*[T](this: Buffer[T]): string =
   withLock(this):
     result = result & "head=" & p(this.head)
     result = result & ", tail=" & p(this.tail)
-    var node = this.head
-    while node != nil:
+    this.foreachNode(node):
       result = result & ", node#" & p(node) & "("
       result = result & "first=" & $node.first
       result = result & ",last=" & $node.last & ")"
-      node = node.next
   result = result & ")"

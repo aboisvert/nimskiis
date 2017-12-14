@@ -42,13 +42,16 @@ template withLock(t, x: untyped) =
   release(t.lock)
   debug("released", t)
 
+template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
+  while (var varName = t.head; varName != nil):
+    let next = varName.next
+    code
+    node = varName
+
 proc dispose[T](t: BlockingQueue[T]) =
   withLock(t):
-    var node = t.head
-    while node != nil:
-      let next = node.next
+    t.foreachNode(node):
       deallocShared(node)
-      node = next
     t.head = nil
     t.tail = nil
   deinitLock t.lock
@@ -72,12 +75,10 @@ proc `$`*[T](this: BlockingQueue[T]): string =
     result = result & ", tail=" & addressObj(this.tail[])
     result = result & ", size=" & $this.size
     result = result & ", maxSize=" & $this.maxSize
-    var node = this.head
-    while node != nil:
+    this.foreachNode(node):
       result = result & ", node#" & addressObj(node[]) & "("
       result = result & "first=" & $node.first
       result = result & ",last=" & $node.last & ")"
-      node = node.next
   result = result & ")"
 
 proc pop*[T](this: BlockingQueue[T]): Option[T] =
@@ -113,7 +114,7 @@ proc pop*[T](this: BlockingQueue[T]): Option[T] =
 
 iterator items*[T](this: BlockingQueue[T]): int =
   var x = this.pop()
-  while (x.isSome):
+  while x.isSome:
     yield x.get
     x = this.pop()
 
