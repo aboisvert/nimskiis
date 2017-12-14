@@ -1,3 +1,4 @@
+import locks
 
 proc asRef*[T](p: ptr T): ref T {.inline.} =
   cast[ref T](p)
@@ -13,6 +14,11 @@ template addressRef*(r: untyped): string =
 
 template addressPtr*(p: ptr): string =
   "0x" & $cast[int](p)
+
+template lockInitWith*(a: var Lock, body: untyped) =
+  initLock(a)
+  {.locks: [a].}:
+    body
 
 template debug*[T](s: string, p: ref T) =
   #echo "Thread " & $getThreadId() & " - " & s & " - " & addressRef(p)
