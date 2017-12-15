@@ -1,14 +1,13 @@
-
+#
 # Concurrent (thread-safe) bounded-size blocking queue.
 #
 # Basically a multable seq with maximum allowable size, with push() and pop() semantics.
 #
-# NOTE:  This is an unordered collection.  push() may not append at the end of the buffer.
-#        In that sense, BlokingQueue is more like an unordered bag and isn't "fair" from
-#        a concurrency standpoint.
+# Note that push() and pop() generally (but not strictly) follow FIFO semantics.
+# As such, consumers should generally treat BlockingQueue as an unordered collection.
+# Push() may not append at the end of the buffer and so n that sense, BlokingQueue is
+# more like an unordered bag and isn't "fair" from a concurrency standpoint.
 #
-# push() appends "towards" the end of the bag
-# pop() removes the current first element of the bag.
 
 import
   options,
