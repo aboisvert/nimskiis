@@ -106,3 +106,19 @@ suite "Skiis":
     let result = s.parFilter(context) do (x: int) -> bool: (x mod 2 == 0)
     check:
       result.toSeq == @[2, 4]
+
+  test "grouped (1..10)":
+    let s: Skiis[int] = countSkiis(1, 10)
+    let grouped = s.grouped(3)
+    check:
+      grouped.next() == some(@[1, 2, 3])
+      grouped.next() == some(@[4, 5, 6])
+      grouped.next() == some(@[7, 8, 9])
+      grouped.next() == some(@[10])
+      grouped.next() == none(seq[int])
+
+  test "lookahead":
+    let s: Skiis[int] = countSkiis(1, 10)
+    let result = s.lookahead(SkiisContext(parallelism: 4, queue: 1, batch: 1))
+    check:
+      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet

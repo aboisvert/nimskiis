@@ -3,6 +3,7 @@ import
   blockingqueue,
   counter,
   skiis,
+  groupedskiis,
   helpers,
   os,
   threadpool
@@ -152,6 +153,7 @@ proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T
       current = op(current, n)
     params.output.push(current)
 
+# Reduce elements in parallel
 proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T): T =
   let reducers = spawnStage[T, T](input, context, parReduceStage(op))
   let n = reducers.next()
@@ -161,6 +163,17 @@ proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T):
     current = op(current, n)
   result = current
 
+# Calculate the sum of elements in parallel
 proc parSum*[T](input: Skiis[T], context: SkiisContext): T =
   input.parReduce(context) do (x: int, y: int) -> int:
     x + y
+
+# "Lookahead" forces evaluation of previous computation using provided `parallelism`, `queue` and `batch` parameters.
+# This is a convenience function meant to provide a standard name for this recurring idiom.
+# It is the equivalent of parMap(identity).
+proc lookahead*[T](input: Skiis[T], context: SkiisContext): Skiis[T] =
+ input.parMap(context, identity[T])
+
+# Group stream into groups of `n` elements
+proc grouped*[T](input: Skiis[T], size: int): Skiis[seq[T]] =
+  result = initGroupedSkiis(input, size)

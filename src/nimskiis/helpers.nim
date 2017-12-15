@@ -23,3 +23,7 @@ template lockInitWith*(a: var Lock, body: untyped) =
 template debug*[T](s: string, p: ref T) =
   #echo "Thread " & $getThreadId() & " - " & s & " - " & addressRef(p)
   discard 1
+
+# Identity function
+proc identity*[T](t: T): T =
+  t
