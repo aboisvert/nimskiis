@@ -4,6 +4,9 @@ import
   counter,
   skiis,
   groupedskiis,
+  mapskiis,
+  flatmapskiis,
+  filterskiis,
   helpers,
   os,
   threadpool
@@ -36,7 +39,7 @@ type
   ParForeachParamsObj[T] = object
     context: SkiisContext
     input: Skiis[T]
-    op: proc (t: T): void
+    op: proc (t: T): void {.nimcall.}
     executorsCompleted: Counter
 
   ParForeachParams[T] = ptr ParForeachParamsObj[T] # ptr to avoid deep copy
@@ -46,7 +49,7 @@ proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
     params.op(n)
   params.executorsCompleted.inc()
 
-proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void): void =
+proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void {.nimcall.}): void =
   let counter = newCounter(context.parallelism)
   let params = allocShared0T(ParForeachParamsObj[T])
   block initParams:
@@ -80,7 +83,6 @@ proc stageExecutor[T, U](params: StageParams[T, U], op: proc (params: StageParam
   op(params)
 
   let completed = params.executorsCompleted.inc()
-  #debug("parMapExecutor done pushing; count=" & $completed, params.input)
   if completed >= params.context.parallelism:
     params.output.close()
     GC_unref(params.input)
@@ -90,6 +92,7 @@ proc stageExecutor[T, U](params: StageParams[T, U], op: proc (params: StageParam
 
 proc spawnStage*[T, U](input: Skiis[T], context: SkiisContext, op: proc (params: StageParams[T, U]): void): Skiis[U] =
   let queue = newBlockingQueue[U](context.queue)
+
   let executorsCompleted = newCounter(context.parallelism)
   let params = allocShared0T(StageParamsObj[T, U])
   GC_ref(input)
@@ -109,13 +112,13 @@ proc spawnStage*[T, U](input: Skiis[T], context: SkiisContext, op: proc (params:
 
 #--- parMap ---
 
-proc parMapStage[T, U](op: proc (t: T): U): (proc (params: StageParams[T, U]): void {.closure.}) =
+proc parMapStage[T, U](op: proc (t: T): U {.nimcall.}): (proc (params: StageParams[T, U]): void {.closure.}) =
   result = proc (params: StageParams[T, U]): void {.closure.} =
     params.input.foreach(n):
       let output = op(n)
       params.output.push(output)
 
-proc parMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): U): Skiis[U] =
+proc parMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): U {.nimcall.}): Skiis[U] =
   let stageOp: proc (params: StageParams[T, U]): void {.closure.} = parMapStage(op)
   spawnStage[T, U](input, context, stageOp)
 
@@ -128,7 +131,7 @@ proc parFlatMapStage[T, U](op: proc (t: T): seq[U]): (proc (params: StageParams[
       for o in output:
         params.output.push(o)
 
-proc parFlatMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): seq[U]): Skiis[U] =
+proc parFlatMap*[T, U](input: Skiis[T], context: SkiisContext, op: proc (t: T): seq[U] {.nimcall.}): Skiis[U] =
   spawnStage[T, U](input, context, parFlatMapStage(op))
 
 #--- parFilter ---
@@ -139,7 +142,7 @@ proc parFilterStage[T](op: proc (t: T): bool): (proc (params: StageParams[T, T])
       if op(n):
         params.output.push(n)
 
-proc parFilter*[T](input: Skiis[T], context: SkiisContext, op: proc (t: T): bool): Skiis[T] =
+proc parFilter*[T](input: Skiis[T], context: SkiisContext, op: proc (t: T): bool {.nimcall.}): Skiis[T] =
   spawnStage[T, T](input, context, parFilterStage(op))
 
 #--- parReduce ---
@@ -154,7 +157,7 @@ proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T
     params.output.push(current)
 
 # Reduce elements in parallel
-proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T): T =
+proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T {.nimcall.}): T =
   let reducers = spawnStage[T, T](input, context, parReduceStage(op))
   let n = reducers.next()
   if n.isNone: raise newException(SystemError, "No data to reduce")
@@ -168,6 +171,15 @@ proc parSum*[T](input: Skiis[T], context: SkiisContext): T =
   input.parReduce(context) do (x: int, y: int) -> int:
     x + y
 
+proc map*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall.}): Skiis[U] =
+  initMapSkiis(input, op)
+
+proc flatMap*[T, U](input: Skiis[T], op: proc (t: T): seq[U] {.nimcall.}): Skiis[U] =
+  initFlatMapSkiis(input, op)
+
+proc filter*[T](input: Skiis[T], op: proc (t: T): bool {.nimcall.}): Skiis[T] =
+  initFilterSkiis(input, op)
+
 # "Lookahead" forces evaluation of previous computation using provided `parallelism`, `queue` and `batch` parameters.
 # This is a convenience function meant to provide a standard name for this recurring idiom.
 # It is the equivalent of parMap(identity).
@@ -177,3 +189,12 @@ proc lookahead*[T](input: Skiis[T], context: SkiisContext): Skiis[T] =
 # Group stream into groups of `n` elements
 proc grouped*[T](input: Skiis[T], size: int): Skiis[seq[T]] =
   result = initGroupedSkiis(input, size)
+
+#proc listenAux[T](op: proc (t: T): void {.nimcall.}): proc (t: T): T {.nimcall.} =
+#  result = proc (t: T): T {.nimcall.}=
+#    try: op(t)
+#    except: discard
+#    t
+
+#proc listen*[T](input: Skiis[T], op: proc (t: T): void {.nimcall.}): Skiis[T] =
+  #input.map(listenAux(op))

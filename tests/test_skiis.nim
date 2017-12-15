@@ -18,7 +18,7 @@ suite "Skiis":
     s.parForeach(context) do (x: int) -> void:
       buffer.push(x)
     check:
-      buffer.toSeq.sum == 500500.int64
+      buffer.toSeq.sum == 500_500.int64
 
     test "parForeach (1 to 1000) parallelism=2":
       let s = countSkiis(1, 1000)
@@ -94,7 +94,7 @@ suite "Skiis":
       result == 9
 
   test "parSum (1 to 10,000)":
-    let s: Skiis[int] = countSkiis(1, 10000)
+    let s: Skiis[int] = countSkiis(1, 10_000)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
     let result = s.parSum(context)
     check:
@@ -122,3 +122,46 @@ suite "Skiis":
     let result = s.lookahead(SkiisContext(parallelism: 4, queue: 1, batch: 1))
     check:
       result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet
+
+#[
+  test "listen":
+    let s: Skiis[int] = countSkiis(1, 10)
+    var buffer = newSeq[int]()
+    let result = s.listen do (x: int) -> void:
+      buffer.add(x)
+    check:
+      # order is important here since `result` is lazy
+      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet
+      buffer.toSet == (@[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet)
+]#
+
+  test "map (1..10)":
+    let s: Skiis[int] = countSkiis(1, 10)
+    let result = s.map do (x: int) -> int: (x + 1)
+    check:
+      result.toSet == @[2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].toSet
+
+  test "flatMap (1..10)":
+    let s: Skiis[int] = initSkiis(@[1, 3, 5])
+    let result = s.flatMap do (x: int) -> seq[int]: @[x, x + 1]
+    check:
+      result.toSet == @[1, 2, 3, 4, 5, 6].toSet
+
+  test "flatMap (1..10000)":
+    let s: Skiis[int] = countSkiis(1, 10_000)
+    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+    let result = s.flatMap do (x: int) -> seq[int] {.nimcall.}:
+      if x mod 2 == 0: @[x, x + 1]
+      else: @[x, x + 1, x + 2]
+    let expected =
+      sumRange(2, 10_000, 2) + sumRange(3, 10_101, 2) +
+      sumRange(1,  9_999, 2) + sumRange(2, 10_000, 2) + sumRange(3, 10_001, 2)
+    check:
+      sumRange(1, 10, 2) == @[1, 3, 5, 7, 9].sum # sanity check
+      result.parSum(context) == expected
+
+  test "filter (1..10)":
+    let s: Skiis[int] = countSkiis(1, 10)
+    let result = s.filter do (x: int) -> bool {.nimcall.}: (x mod 2) == 0
+    check:
+      result.toSet == @[2, 4, 6, 8, 10].toSet
