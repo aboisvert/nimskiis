@@ -21,7 +21,7 @@ I am using this project as a way to better learn the Nim language, and hopefully
 
 ### Target platform ###
 
-* Nim 0.017+
+* Currently tested on Nim 0.17.2.
 
 ### License ###
 
