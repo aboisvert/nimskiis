@@ -4,11 +4,11 @@ import
   locks
 
 type
-  IteratorSkiis[T] = object
+  IteratorSkiis[T] = ref object of Skiis[T]
     lock: Lock
     iter {.guard: lock.}: iterator(): T {.closure.}
 
-proc next[T](this: var IteratorSkiis[T]): Option[T] =
+method next[T](this: var IteratorSkiis[T]): Option[T] =
   withLock this.lock:
     #echo "locking: " & $cast[int](unsafeAddr(this.lock))
     let tentative = this.iter()
@@ -18,11 +18,7 @@ proc next[T](this: var IteratorSkiis[T]): Option[T] =
       result = none(T)
 
 proc skiisFromIterator*[T](iter: iterator(): T): Skiis[T] =
-  var this = IteratorSkiis[T]()
+  let this = new(IteratorSkiis[T])
   lockInitWith this.lock:
     this.iter = iter
-  new(result, dispose[T])
-  result.methods.next = proc(): Option[T] = this.next()
-  result.methods.take = proc(n: int): seq[T] = genericTake(proc(): Option[T] = this.next(), n)
-  result.methods.dispose = proc(): void = discard
-
+  result = this

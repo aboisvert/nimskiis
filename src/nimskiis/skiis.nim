@@ -50,12 +50,7 @@ export
 #
 
 type
-  SkiisObj[T] = object
-    methods*: tuple[  # see below for method descriptions
-      next: proc(): Option[T],
-      take: proc(n: int): seq[T],
-      dispose: proc(): void
-    ]
+  SkiisObj*[T] = object {.inheritable.}
   Skiis*[T] = ref SkiisObj[T]
   SkiisPtr*[T] = ptr SkiisObj[T]
 
@@ -64,28 +59,24 @@ type
     queue*: int
     batch*: int
 
-# Get the next element
-proc next*[T](skiis: Skiis[T]): Option[T] =
-  skiis.methods.next()
+method next*[T](skiis: Skiis[T]): Option[T] {.nimcall, gcsafe.}
 
 # Take `n` elements at a time (for efficiency)
-proc take*[T](skiis: Skiis[T], n: int): seq[T] =
-  skiis.methods.take(n)
-
-# Dispose of this Skiis' resrouces
-proc dispose*[T](skiis: Skiis[T]) =
-  skiis.methods.dispose()
-
-proc genericTake*[T](next: proc (): Option[T], n: int): seq[T] =
+method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
   if n <= 0: return newSeq[T]()
   result = newSeqOfCap[T](n)
   var n = n
-  var x = next()
+  var x = skiis.next()
   while (x.isSome):
     result.add(x.get)
     dec n
     if n == 0: return
-    x = next()
+    x = skiis.next()
+
+
+# Dispose of this Skiis' resources
+#method dispose*[T](skiis: Skiis[T]): void {.base.} =
+#  discard
 
 template foreach*[T](skiis: Skiis[T], name, body: untyped) =
   var next = skiis.next()
@@ -98,3 +89,12 @@ proc toSeq*[T](skiis: Skiis[T]): seq[T] =
   result = newSeq[T]()
   skiis.foreach(n):
     result.add(n)
+
+# Get the next element
+method next*[T](skiis: Skiis[T]): Option[T] {.base.} =
+  quit "to override!"
+
+  if false:
+    discard Skiis[int]().next()
+    discard Skiis[int]().take(1)
+  #Skiis[int]().dispose()

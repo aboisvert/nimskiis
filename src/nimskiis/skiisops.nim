@@ -1,6 +1,7 @@
 import
   buffer,
   blockingqueue,
+  blockingqueueskiis,
   counter,
   skiis,
   groupedskiis,
@@ -14,21 +15,6 @@ import
 export
   skiis
 
-#--- BlockingQueue wrapper ---
-
-proc asSkiis*[T](queue: BlockingQueue[T]): Skiis[T] =
-  new(result, dispose[T])
-  result.methods.next = proc(): Option[T] =
-    let value = queue.pop()
-    when T is ref:
-      # deepCopy refs across threads
-      deepCopy(result, value)
-    else:
-      result = value
-
-  # todo: optimize take
-  result.methods.take = proc(n: int): seq[T] = genericTake(proc(): Option[T] = queue.pop(), n)
-  result.methods.dispose = proc(): void = discard # BlockingQueue has is own finalizer
 
 converter asPtr*[T](skiis: Skiis[T]): SkiisPtr[T] =
   skiis[].addr
