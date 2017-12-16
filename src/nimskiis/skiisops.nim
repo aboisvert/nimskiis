@@ -15,8 +15,7 @@ import
 export
   skiis
 
-
-converter asPtr*[T](skiis: Skiis[T]): SkiisPtr[T] =
+converter asPtr*[T](skiis: Skiis[T]): ptr Skiis[T] =
   skiis[].addr
 
 #--- parForeach ---

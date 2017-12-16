@@ -9,7 +9,7 @@ type
     values {.guard: lock.}: seq[T]
     position {.guard: lock.}: int
 
-method next*[T](this: var SeqSkiis[T]): Option[T] =
+method next*[T](this: SeqSkiis[T]): Option[T] {.locks: "unknown".} =
   withLock this.lock:
     template pos: int = this.position
     if pos < this.values.len:

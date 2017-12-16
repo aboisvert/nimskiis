@@ -8,7 +8,7 @@ type
     lock: Lock
     value {.guard: lock.}: Option[T]
 
-method next*[T](skiis: SingletonSkiis[T]): Option[T] =
+method next*[T](skiis: SingletonSkiis[T]): Option[T] {.locks: "unknown".} =
   withLock skiis.lock:
     result = skiis.value
     if skiis.value.isSome:

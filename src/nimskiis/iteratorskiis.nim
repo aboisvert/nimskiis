@@ -8,7 +8,7 @@ type
     lock: Lock
     iter {.guard: lock.}: iterator(): T {.closure.}
 
-method next[T](this: var IteratorSkiis[T]): Option[T] =
+method next[T](this: IteratorSkiis[T]): Option[T] {.locks: "unknown".} =
   withLock this.lock:
     #echo "locking: " & $cast[int](unsafeAddr(this.lock))
     let tentative = this.iter()

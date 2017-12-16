@@ -50,16 +50,16 @@ export
 #
 
 type
-  SkiisObj*[T] = object {.inheritable.}
-  Skiis*[T] = ref SkiisObj[T]
-  SkiisPtr*[T] = ptr SkiisObj[T]
+  Skiis*[T] = ref object {.inheritable.}
 
   SkiisContext* = object
     parallelism*: int
     queue*: int
     batch*: int
 
-method next*[T](skiis: Skiis[T]): Option[T] {.nimcall, gcsafe.}
+# Get the next element
+method next*[T](skiis: Skiis[T]): Option[T] {.base, locks: "unknown".} =
+  quit "to override!"
 
 # Take `n` elements at a time (for efficiency)
 method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
@@ -90,11 +90,7 @@ proc toSeq*[T](skiis: Skiis[T]): seq[T] =
   skiis.foreach(n):
     result.add(n)
 
-# Get the next element
-method next*[T](skiis: Skiis[T]): Option[T] {.base.} =
-  quit "to override!"
-
-  if false:
-    discard Skiis[int]().next()
-    discard Skiis[int]().take(1)
-  #Skiis[int]().dispose()
+if false:
+  discard Skiis[int]().next()
+  discard Skiis[int]().take(1)
+#Skiis[int]().dispose()

@@ -42,8 +42,8 @@ proc countIterator*(a, b: int): iterator (): int =
       yield x
       inc x
 
-proc consumeSum*(skiis: SkiisPtr[int]): Sum =
-  asRef(skiis).foreach(n):
+proc consumeSum*(skiis: Skiis[int]): Sum =
+  skiis.foreach(n):
     result.sum += n
     result.consumed += 1
 

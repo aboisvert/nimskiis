@@ -7,7 +7,7 @@ type
     input: Skiis[T]
     op: proc (t: T): U
 
-method next*[T, U](this: MapSkiis[T, U]): Option[U] =
+method next*[T, U](this: MapSkiis[T, U]): Option[U] {.locks: "unknown".} =
   let next = this.input.next()
   if next.isSome: some(this.op(next.get))
   else: none(U)

@@ -11,7 +11,7 @@ proc asSkiis*[T](queue: BlockingQueue[T]): Skiis[T] =
   this.queue = queue
   result = this
 
-method next*[T](this: BlockingQueueSkiis[T]): Option[T] =
+method next*[T](this: BlockingQueueSkiis[T]): Option[T] {.locks: "unknown".} =
   let value = this.queue.pop()
   when T is ref:
     # deepCopy refs across threads
