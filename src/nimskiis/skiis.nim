@@ -73,11 +73,6 @@ method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
     if n == 0: return
     x = skiis.next()
 
-
-# Dispose of this Skiis' resources
-#method dispose*[T](skiis: Skiis[T]): void {.base.} =
-#  discard
-
 template foreach*[T](skiis: Skiis[T], name, body: untyped) =
   var next = skiis.next()
   while (next.isSome):
@@ -89,8 +84,3 @@ proc toSeq*[T](skiis: Skiis[T]): seq[T] =
   result = newSeq[T]()
   skiis.foreach(n):
     result.add(n)
-
-if false:
-  discard Skiis[int]().next()
-  discard Skiis[int]().take(1)
-#Skiis[int]().dispose()
