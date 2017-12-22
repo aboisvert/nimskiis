@@ -1,8 +1,8 @@
 import
-  buffer,
   blockingqueue,
   blockingqueueskiis,
   counter,
+  list,
   skiis,
   groupedskiis,
   mapskiis,
@@ -77,7 +77,6 @@ proc stageExecutor[T, U](params: StageParams[T, U], op: proc (params: StageParam
 
 proc spawnStage*[T, U](input: Skiis[T], context: SkiisContext, op: proc (params: StageParams[T, U]): void): Skiis[U] =
   let queue = newBlockingQueue[U](context.queue)
-
   let executorsCompleted = newCounter(context.parallelism)
   let params = allocShared0T(StageParamsObj[T, U])
   GC_ref(input)
@@ -142,7 +141,7 @@ proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T
     params.output.push(current)
 
 # Reduce elements in parallel
-proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T {.nimcall.}): T =
+proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T {.nimcall, gcsafe.}): T =
   let reducers = spawnStage[T, T](input, context, parReduceStage(op))
   let n = reducers.next()
   if n.isNone: raise newException(SystemError, "No data to reduce")
@@ -156,13 +155,13 @@ proc parSum*[T](input: Skiis[T], context: SkiisContext): T =
   input.parReduce(context) do (x: int, y: int) -> int:
     x + y
 
-proc map*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall.}): Skiis[U] =
+proc map*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall, gcsafe.}): Skiis[U] =
   initMapSkiis(input, op)
 
-proc flatMap*[T, U](input: Skiis[T], op: proc (t: T): seq[U] {.nimcall.}): Skiis[U] =
+proc flatMap*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall, gcsafe.}): Skiis[U] =
   initFlatMapSkiis(input, op)
 
-proc filter*[T](input: Skiis[T], op: proc (t: T): bool {.nimcall.}): Skiis[T] =
+proc filter*[T](input: Skiis[T], op: proc (t: T): bool {.nimcall, gcsafe.}): Skiis[T] =
   initFilterSkiis(input, op)
 
 # "Lookahead" forces evaluation of previous computation using provided `parallelism`, `queue` and `batch` parameters.

@@ -33,13 +33,9 @@ type
   BlockingQueue*[T] = ref BlockingQueueObj[T]
 
 template withLock(t, x: untyped) =
-  debug("locking", t)
   acquire(t.lock)
-  debug("locked", t)
   x
-  debug("releasing", t)
   release(t.lock)
-  debug("released", t)
 
 template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
   while (var varName = t.head; varName != nil):
@@ -65,24 +61,21 @@ proc newBlockingQueue*[T](maxSize: int): BlockingQueue[T] =
   initCond result.nonEmpty
   initCond result.nonFull
 
+# should be called with lock
 proc `$`*[T](this: BlockingQueue[T]): string =
   result = "BlockingQueue("
   result = result & addressRef(this) & ", "
-
-  withLock(this):
-    result = result & "head=" & addressObj(this.head[])
-    result = result & ", tail=" & addressObj(this.tail[])
-    result = result & ", size=" & $this.size
-    result = result & ", maxSize=" & $this.maxSize
-    this.foreachNode(node):
-      result = result & ", node#" & addressObj(node[]) & "("
-      result = result & "first=" & $node.first
-      result = result & ",last=" & $node.last & ")"
+  result = result & "head=" & addressObj(this.head[])
+  result = result & ", tail=" & addressObj(this.tail[])
+  result = result & ", size=" & $this.size
+  result = result & ", maxSize=" & $this.maxSize
+  this.foreachNode(node):
+    result = result & ", node#" & addressObj(node[]) & "("
+    result = result & "first=" & $node.first
+    result = result & ",last=" & $node.last & ")"
   result = result & ")"
 
 proc pop*[T](this: BlockingQueue[T]): Option[T] =
-  debug("popping from: " & $this, this)
-
   withLock(this):
     var found = false
     template head: Node[T] = this.head
@@ -103,11 +96,8 @@ proc pop*[T](this: BlockingQueue[T]): Option[T] =
         found = true
         result = none(T)
       else:
-        debug("popping waiting", this)
         this.nonEmpty.wait(this.lock)
-        debug("popping after waiting", this)
 
-    debug("popped: " & $result, this)
     if result.isSome:
       this.nonfull.signal()
 
@@ -118,15 +108,11 @@ iterator items*[T](this: BlockingQueue[T]): int =
     x = this.pop()
 
 proc push*[T](this: BlockingQueue[T]; y: T): void =
-  debug("pushing " & $y & " on: " & $this, this)
   withLock(this):
     if this.closed:
       raise newException(SystemError, "Cannot push to a closed BlockingQueue")
     while this.size >= this.maxSize and not this.closed:
-      debug("waiting to push", this)
       this.nonFull.wait(this.lock)
-      debug("after waiting to push", this)
-    debug("nonFull", this)
     if this.closed:
       raise newException(SystemError, "Cannot push to a closed BlockingQueue")
 
@@ -148,9 +134,7 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
     else:
       raise newException(SystemError, "WTF!")
     inc(this.size)
-    debug("signal nonEmpty", this)
     this.nonEmpty.signal()
-    debug("pushed: " & $y, this)
 
 proc toSeq*[T](buf: BlockingQueue[T]): seq[T] =
   result = newSeq[T]()

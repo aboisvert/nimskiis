@@ -32,7 +32,8 @@ template withLock(t, x: untyped) =
   release(t.lock)
 
 template foreachNode[T](b: Buffer[T], varName, code: untyped) =
-  while (var varName = b.head; varName != nil):
+  var varName = b.head
+  while varName != nil:
     let next = varName.next
     code
     varName = next

@@ -1,15 +1,17 @@
 import
   skiis,
   helpers,
-  buffer
+  buffer,
+  list
 
 type
   FlatMapSkiis[T, U] = ref object of Skiis[U]
     input: Skiis[T]
-    op: proc (t: T): seq[U]
+    op: proc (t: T): List[U]
     buffer: Buffer[T]
     lock: Lock
     consumers: int
+    producers: int
     noMore: bool
     consumerFinished: Cond
 
@@ -17,39 +19,38 @@ method next*[T, U](this: FlatMapSkiis[T, U]): Option[U] {.locks: "unknown".} =
   while true:
     block:
       let buffered = this.buffer.pop()
-      if buffered.isSome: return buffered
+      if buffered.isSome:
+        this.consumerFinished.signal()
+        return buffered
 
-    var noMore: bool
-    var consumers = 0
     withLock this.lock:
-      noMore = this.noMore
-      consumers = this.consumers
-      if not noMore:
-        this.consumers += 1
+      if this.noMore and this.producers == 0:
+        release(this.lock)
+        return none(T)
 
-    if noMore:
-      if consumers == 0: return none(U)
-      this.consumerFinished.wait(this.lock)
-
-    var next = this.input.next()
-    #when T is ref: deepCopy(next, next)
-
+    let next = this.input.next()
     if next.isSome:
-      let results = this.op(next.get)
-      for r in results:
+      var results = deepClone(this.op(next.get))
+      results.foreach(r):
         this.buffer.push(r)
+      results.disposeList()
       withLock this.lock:
-        dec(this.consumers)
+        this.producers -= 1
+      this.consumerFinished.signal()
     else:
-      var consumers = 0
       withLock this.lock:
-        this.noMore = true
-        this.consumers -= 1
-        consumers = this.consumers
+        if this.noMore:
+          if this.producers > 1:
+            this.consumerFinished.wait(this.lock)
+          else:
+            this.consumers -= 1
+            this.consumerFinished.signal()
+            release(this.lock)
+            return none(T)
+        else:
+          this.noMore = true
 
-    this.consumerFinished.signal()
-
-proc initFlatMapSkiis*[T, U](input: Skiis[T], op: proc (t: T): seq[U] {.nimcall.}): Skiis[U] =
+proc initFlatMapSkiis*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall.}): Skiis[U] =
   let this = new(FlatMapSkiis[T, U])
   this.input = input
   this.op = op

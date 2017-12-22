@@ -143,25 +143,21 @@ suite "Skiis":
 
   test "flatMap (1..10)":
     let s: Skiis[int] = initSkiis(@[1, 3, 5])
-    let result = s.flatMap do (x: int) -> seq[int]: @[x, x + 1]
+    let result = s.flatMap do (x: int) -> List[int]: newList(x, x + 1)
     check:
       result.toSet == @[1, 2, 3, 4, 5, 6].toSet
 
-  test "flatMap (1..10000)":
+  test "flatMap (1..10_000)":
     let s: Skiis[int] = countSkiis(1, 10_000)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    let result = s.flatMap do (x: int) -> seq[int] {.nimcall.}:
-      if x mod 2 == 0: @[x, x + 1]
-      else: @[x, x + 1, x + 2]
-    let expected =
-      sumRange(2, 10_000, 2) + sumRange(3, 10_101, 2) +
-      sumRange(1,  9_999, 2) + sumRange(2, 10_000, 2) + sumRange(3, 10_001, 2)
+    let result = s.flatMap do (x: int) -> List[int]:
+      if x mod 2 == 0: newList(x, x + 1)
+      else: newList(x, x + 1, x + 2)
     check:
-      sumRange(1, 10, 2) == @[1, 3, 5, 7, 9].sum # sanity check
-      result.parSum(context) == expected
+      result.parSum(context) == 125030000
 
   test "filter (1..10)":
     let s: Skiis[int] = countSkiis(1, 10)
-    let result = s.filter do (x: int) -> bool {.nimcall.}: (x mod 2) == 0
+    let result = s.filter do (x: int) -> bool: (x mod 2) == 0
     check:
       result.toSet == @[2, 4, 6, 8, 10].toSet

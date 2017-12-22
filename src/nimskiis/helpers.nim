@@ -27,3 +27,12 @@ template debug*[T](s: string, p: ref T) =
 # Identity function
 proc identity*[T](t: T): T =
   t
+
+type Wrapper*[T] = object
+  obj*: T
+
+proc deepClone*[T](t: T): T =
+  when T is object or T is tuple or T is string or T is seq or T is ref or T is array:
+    deepCopy result, t
+  else:
+    t

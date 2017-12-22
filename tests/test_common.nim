@@ -12,6 +12,7 @@ export
   nimskiis,
   buffer,
   blockingqueue,
+  helpers,
   unittest,
   sequtils,
   threadpool,
@@ -23,9 +24,6 @@ type Sum* = object
 
 proc sum*(xs: openarray[Sum]): int64 =
   foldl(xs, a + b.sum, 0.int64)
-
-#proc sum*(xs: openarray[int]): int64 =
-#  foldl(xs, a + b, 0.int64)
 
 proc sum*(xs: iterator(): int {.closure.}): int64 =
   for x in xs():
@@ -42,13 +40,31 @@ proc countIterator*(a, b: int): iterator (): int =
       yield x
       inc x
 
-proc consumeSum*(skiis: Skiis[int]): Sum =
-  skiis.foreach(n):
+proc consumeSum*(skiis: ptr Wrapper[Skiis[int]]): Sum =
+  (skiis.obj).foreach(n):
     result.sum += n
     result.consumed += 1
 
-proc countSkiis*(i: int, j: int): Skiis[int] =
-   skiisFromIterator[int](countIterator(i, j))
+type
+  CountSkiis = ref object of Skiis[int]
+    lock: Lock
+    current: int
+    stop: int
+    step: int
+
+method next*(this: CountSkiis): Option[int] =
+  withLock this.lock:
+    if this.current <= this.stop:
+      result = some(this.current)
+      inc(this.current, this.step)
+    else:
+      result = none(int)
+
+proc countSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
+   #skiisFromIterator[int](countIterator(i, j))
+   let this = CountSkiis(current: start, stop: stop, step: step)
+   initLock(this.lock)
+   result = this
 
 proc sliceToSeq*[T](s: Slice[T]): seq[T] =
   result = newSeq[T](ord(s.b) - ord(s.a) + 1)
