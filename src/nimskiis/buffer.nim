@@ -91,7 +91,7 @@ proc push*[T](this: Buffer[T]; y: T): void =
       dec(node.first)
       node.elems[node.first] = y
     else:
-      raise newException(SystemError, "WTF!")
+      raise newException(AssertionError, "WTF!")
 
 proc toSeq*[T](buf: Buffer[T]): seq[T] =
   result = newSeq[T]()

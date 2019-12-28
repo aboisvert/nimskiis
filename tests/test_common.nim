@@ -87,4 +87,4 @@ proc sumRange*(low, high, step: int): int =
   var x = low
   while x <= high:
     result += x
-    x  += step
+    x += step

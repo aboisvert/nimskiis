@@ -144,7 +144,7 @@ proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T
 proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T {.nimcall, gcsafe.}): T =
   let reducers = spawnStage[T, T](input, context, parReduceStage(op))
   let n = reducers.next()
-  if n.isNone: raise newException(SystemError, "No data to reduce")
+  if n.isNone: raise newException(AssertionError, "No data to reduce")
   var current: T = n.get()
   reducers.foreach(n):
     current = op(current, n)

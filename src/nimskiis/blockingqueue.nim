@@ -110,11 +110,11 @@ iterator items*[T](this: BlockingQueue[T]): int =
 proc push*[T](this: BlockingQueue[T]; y: T): void =
   withLock(this):
     if this.closed:
-      raise newException(SystemError, "Cannot push to a closed BlockingQueue")
+      raise newException(AssertionError, "Cannot push to a closed BlockingQueue")
     while this.size >= this.maxSize and not this.closed:
       this.nonFull.wait(this.lock)
     if this.closed:
-      raise newException(SystemError, "Cannot push to a closed BlockingQueue")
+      raise newException(AssertionError, "Cannot push to a closed BlockingQueue")
 
     var node = this.tail
     if node == nil or (node.first == 0 and node.last == ElemsPerNode):
@@ -132,7 +132,7 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
       dec(node.first)
       node.elems[node.first] = y
     else:
-      raise newException(SystemError, "WTF!")
+      raise newException(AssertionError, "WTF!")
     inc(this.size)
     this.nonEmpty.signal()
 
