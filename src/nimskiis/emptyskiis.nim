@@ -3,7 +3,7 @@ import skiis
 type
   EmptySkiis[T] = ref object of Skiis[T]
 
-method next*[T](this: EmptySkiis[T]): Option[T] {.locks: "unknown".} =
+method next*[T](this: EmptySkiis[T]): Option[T] {.locks: "unknown", base.} =
   result = none(T)
 
 method take*[T](this: EmptySkiis[T], n: int): seq[T] {.locks: "unknown".} =

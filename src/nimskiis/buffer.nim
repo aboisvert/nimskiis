@@ -22,31 +22,36 @@ type
     next: Node[T]
     first, last: int
 
-  Buffer*[T] = ref object
+  BufferO*[T] = object
     head, tail: Node[T]
     lock*: Lock
+
+  Buffer*[T] = ref BufferO[T]
 
 template withLock(t, x: untyped) =
   acquire(t.lock)
   x
   release(t.lock)
 
-template foreachNode[T](b: Buffer[T], varName, code: untyped) =
+template foreachNode[T](b: BufferO[T], varName, code: untyped) =
   var varName = b.head
   while varName != nil:
     let next = varName.next
     code
     varName = next
 
-proc disposeBuffer[T](b: Buffer[T]) =
+proc disposeBuffer[T](b: var BufferO[T]) =
   withLock(b):
     b.foreachNode(node): deallocShared(node)
     b.head = nil
     b.tail = nil
   deinitLock b.lock
 
+proc `=destroy`*[T](b: var BufferO[T]) =
+  disposeBuffer(b)
+
 proc newBuffer*[T](): Buffer[T] =
-  new(result, disposeBuffer[T])
+  new(result) # TODO - finalizer - disposeBuffer[T])
   initLock result.lock
   result.head = nil
   result.tail = nil
@@ -91,7 +96,7 @@ proc push*[T](this: Buffer[T]; y: T): void =
       dec(node.first)
       node.elems[node.first] = y
     else:
-      raise newException(AssertionError, "WTF!")
+      discard # ???
 
 proc toSeq*[T](buf: Buffer[T]): seq[T] =
   result = newSeq[T]()

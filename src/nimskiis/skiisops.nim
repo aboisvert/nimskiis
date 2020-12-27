@@ -20,6 +20,14 @@ converter asPtr*[T](skiis: Skiis[T]): ptr Skiis[T] =
 
 #--- parForeach ---
 
+#[
+template GC_ref(x): void =
+  discard
+
+template GC_unref(x): void =
+  discard
+]#
+
 type
   ParForeachParamsObj[T] = object
     context: SkiisContext
@@ -29,17 +37,18 @@ type
 
   ParForeachParams[T] = ptr ParForeachParamsObj[T] # ptr to avoid deep copy
 
-proc parForeachExecutor[T](params: ParForeachParams[T]) {.thread.} =
+proc parForeachExecutor[T](params: ParForeachParams[T]) =
   params.input.foreach(n):
-    params.op(n)
+    {.gcsafe.}:
+      params.op(n)
   params.executorsCompleted.inc()
 
 proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): void {.nimcall.}): void =
   let counter = newCounter(context.parallelism)
   let params = allocShared0T(ParForeachParamsObj[T])
   block initParams:
-    GC_ref(skiis)
-    GC_ref(counter)
+    # GC_ref(skiis)
+    # GC_ref(counter)
     params.context = context
     params.input = skiis
     params.op = op
@@ -48,9 +57,9 @@ proc parForeach*[T](skiis: Skiis[T], context: SkiisContext, op: proc (t: T): voi
     spawn parForeachExecutor(params)
   counter.await()
   block deinitParams:
-    GC_unref(skiis)
-    GC_unref(counter)
-    counter.dispose()
+    # GC_unref(skiis)
+    # GC_unref(counter)
+    # counter.disposeCounter()
     deallocShared(params)
 
 #--- stage: input (Skiis[T]) >> operation (proc) >> output (BlockingQueue[U]) ---
@@ -70,18 +79,18 @@ proc stageExecutor[T, U](params: StageParams[T, U], op: proc (params: StageParam
   let completed = params.executorsCompleted.inc()
   if completed >= params.context.parallelism:
     params.output.close()
-    GC_unref(params.input)
-    GC_unref(params.output)
-    GC_unref(params.executorsCompleted)
+    # GC_unref(params.input)
+    # GC_unref(params.output)
+    # GC_unref(params.executorsCompleted)
     deallocShared(params)
 
 proc spawnStage*[T, U](input: Skiis[T], context: SkiisContext, op: proc (params: StageParams[T, U]): void): Skiis[U] =
   let queue = newBlockingQueue[U](context.queue)
   let executorsCompleted = newCounter(context.parallelism)
   let params = allocShared0T(StageParamsObj[T, U])
-  GC_ref(input)
-  GC_ref(queue)
-  GC_ref(executorsCompleted)
+  # GC_ref(input)
+  # GC_ref(queue)
+  # GC_ref(executorsCompleted)
   params.input = input
   params.output = queue
   params.executorsCompleted = executorsCompleted
@@ -144,7 +153,7 @@ proc parReduceStage[T](op: proc (t1, t2: T): T): (proc (params: StageParams[T, T
 proc parReduce*[T](input: Skiis[T], context: SkiisContext, op: proc (t1, t2: T): T {.nimcall, gcsafe.}): T =
   let reducers = spawnStage[T, T](input, context, parReduceStage(op))
   let n = reducers.next()
-  if n.isNone: raise newException(AssertionError, "No data to reduce")
+  if n.isNone: raise newException(Defect, "No data to reduce")
   var current: T = n.get()
   reducers.foreach(n):
     current = op(current, n)

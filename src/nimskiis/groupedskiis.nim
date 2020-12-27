@@ -7,7 +7,7 @@ type
     size: int
     input: Skiis[T]
 
-method next*[T](this: GroupedSkiis[T]): Option[seq[T]] {.locks: "unknown".} =
+method next*[T](this: GroupedSkiis[T]): Option[seq[T]] {.locks: "unknown", base.} =
   let g = this.input.take(this.size)
   if g.len > 0:
     some(g)

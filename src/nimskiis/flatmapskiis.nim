@@ -15,7 +15,7 @@ type
     noMore: bool
     consumerFinished: Cond
 
-method next*[T, U](this: FlatMapSkiis[T, U]): Option[U] {.locks: "unknown".} =
+method next*[T, U](this: FlatMapSkiis[T, U]): Option[U] {.locks: "unknown", base.} =
   while true:
     block:
       let buffered = this.buffer.pop()

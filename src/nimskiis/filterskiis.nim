@@ -7,7 +7,7 @@ type
     input: Skiis[T]
     op: proc (t: T): bool
 
-method next*[T](this: FilterSkiis[T]): Option[T] {.locks: "unknown".} =
+method next*[T](this: FilterSkiis[T]): Option[T] {.locks: "unknown", base.} =
   while true:
     let next = this.input.next()
     if next.isSome and this.op(next.get): return next

@@ -8,7 +8,7 @@ type
     lock: Lock
     value {.guard: lock.}: Option[T]
 
-method next*[T](skiis: SingletonSkiis[T]): Option[T] {.locks: "unknown".} =
+method next*[T](skiis: SingletonSkiis[T]): Option[T] {.locks: "unknown", base.} =
   withLock skiis.lock:
     result = skiis.value
     if skiis.value.isSome:
@@ -19,4 +19,3 @@ proc initSingletonSkiis*[T](value: T): Skiis[T] =
   lockInitWith this.lock:
     this.value = some(value)
   result = this
-

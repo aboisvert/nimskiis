@@ -47,7 +47,7 @@ suite "Skiis":
         x + 1
       let result = skiis.toSet
       check:
-        result == @[2, 3, 4].toSet
+        result == @[2, 3, 4].toHashSet
 
     test "parMap 1.. 3 works with strings":
       let s = @[1, 2, 3]
@@ -59,7 +59,7 @@ suite "Skiis":
       let result = skiis.toSet
       GC_fullCollect()
       check:
-        result == @["1", "2", "3"].toSet
+        result == @["1", "2", "3"].toHashSet
 
     test "parMap 1..1000 works with strings":
       let s: Skiis[int] = countSkiis(1, 1000)
@@ -72,7 +72,7 @@ suite "Skiis":
       GC_fullCollect()
       let result = skiis.toSet
       GC_fullCollect()
-      let expected = sliceToSeq(1 .. 1000).mapIt($it).toSet
+      let expected = sliceToSeq(1 .. 1000).mapIt($it).toHashSet
       check:
         result == expected
 
@@ -84,7 +84,7 @@ suite "Skiis":
     let result = skiis.toSeq
     check:
       result.len == 6
-      result.toSet == @[1, 2, 3, 4, 5, 6].toSet
+      result.toHashSet == @[1, 2, 3, 4, 5, 6].toHashSet
 
   test "parReduce @[1, 3, 5])":
     let s: Skiis[int] = initSkiis(@[1, 3, 5])
@@ -121,7 +121,7 @@ suite "Skiis":
     let s: Skiis[int] = countSkiis(1, 10)
     let result = s.lookahead(SkiisContext(parallelism: 4, queue: 1, batch: 1))
     check:
-      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet
+      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet
 
 #[
   test "listen":
@@ -139,13 +139,13 @@ suite "Skiis":
     let s: Skiis[int] = countSkiis(1, 10)
     let result = s.map do (x: int) -> int: (x + 1)
     check:
-      result.toSet == @[2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].toSet
+      result.toSet == @[2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].toHashSet
 
   test "flatMap (1..10)":
     let s: Skiis[int] = initSkiis(@[1, 3, 5])
     let result = s.flatMap do (x: int) -> List[int]: newList(x, x + 1)
     check:
-      result.toSet == @[1, 2, 3, 4, 5, 6].toSet
+      result.toSet == @[1, 2, 3, 4, 5, 6].toHashSet
 
   test "flatMap (1..10_000)":
     let s: Skiis[int] = countSkiis(1, 10_000)
@@ -160,4 +160,4 @@ suite "Skiis":
     let s: Skiis[int] = countSkiis(1, 10)
     let result = s.filter do (x: int) -> bool: (x mod 2) == 0
     check:
-      result.toSet == @[2, 4, 6, 8, 10].toSet
+      result.toSet == @[2, 4, 6, 8, 10].toHashSet

@@ -25,8 +25,8 @@ task clean, "Clean development area":
   rmDir "tests/nimcache"
 
 task lib, "Compile sources and produce a lib":
-  exec "nim c --threads:on --app:lib src/nimskiis.nim"
-  exec "nim c --threads:on --path:../src tests/all_tests"
+  exec "nim c --threads:on --gc:arc --app:lib src/nimskiis.nim"
+  exec "nim c --threads:on --gc:arc --path:../src tests/all_tests"
 
 task tests, "Run all tests":
   withDir "tests":

@@ -47,7 +47,7 @@ suite "SeqSkiis":
     wrapper.obj = s
     for i in 0..responses.len-1:
       responses[i] = spawn consumeSum(wrapper)
-    let results: seq[Sum] = responses.mapIt(Sum, ^it)
+    let results: seq[Sum] = responses.mapIt(^it)
     check:
       sum(results) == 5_000_050_000.int64
     deallocShared(wrapper)

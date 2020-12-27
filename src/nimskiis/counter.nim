@@ -3,11 +3,20 @@ import locks
 {.push stackTrace:off.}
 
 type
-  Counter* = ref object
+  CounterO* = object
     value: int
     maxValue: int
     lock: Lock
     maxValueReached: Cond
+
+  Counter* = ref CounterO
+
+proc disposeCounter*(this: var CounterO): void =
+  deinitLock(this.lock)
+  deinitCond(this.maxValueReached)
+
+proc `=destroy`*(c: var CounterO) =
+  disposeCounter(c)
 
 proc newCounter*(maxValue: int): Counter =
   new(result)
@@ -15,10 +24,6 @@ proc newCounter*(maxValue: int): Counter =
   result.maxValue = maxValue
   initLock(result.lock)
   initCond(result.maxValueReached)
-
-proc dispose*(this: Counter): void =
-  deinitLock(this.lock)
-  deinitCond(this.maxValueReached)
 
 proc await*(this: Counter) =
   acquire(this.lock)

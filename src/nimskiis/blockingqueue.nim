@@ -52,7 +52,7 @@ proc dispose[T](t: BlockingQueue[T]) =
   deinitLock t.lock
 
 proc newBlockingQueue*[T](maxSize: int): BlockingQueue[T] =
-  new(result, dispose[T])
+  new(result) # TODO - finalizer: dispose[T])
   result.head = nil
   result.tail = nil
   result.size = 0
@@ -110,11 +110,11 @@ iterator items*[T](this: BlockingQueue[T]): int =
 proc push*[T](this: BlockingQueue[T]; y: T): void =
   withLock(this):
     if this.closed:
-      raise newException(AssertionError, "Cannot push to a closed BlockingQueue")
+      raise newException(Defect, "Cannot push to a closed BlockingQueue")
     while this.size >= this.maxSize and not this.closed:
       this.nonFull.wait(this.lock)
     if this.closed:
-      raise newException(AssertionError, "Cannot push to a closed BlockingQueue")
+      raise newException(Defect, "Cannot push to a closed BlockingQueue")
 
     var node = this.tail
     if node == nil or (node.first == 0 and node.last == ElemsPerNode):
@@ -132,7 +132,7 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
       dec(node.first)
       node.elems[node.first] = y
     else:
-      raise newException(AssertionError, "WTF!")
+      raise newException(Defect, "WTF!")
     inc(this.size)
     this.nonEmpty.signal()
 

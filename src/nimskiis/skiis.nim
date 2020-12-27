@@ -50,7 +50,7 @@ export
 #
 
 type
-  Skiis*[T] = ref object {.inheritable.}
+  Skiis*[T] {.inheritable.} = ref object of RootObj
 
   SkiisContext* = object
     parallelism*: int
@@ -59,7 +59,7 @@ type
 
 # Get the next element
 method next*[T](skiis: Skiis[T]): Option[T] {.base, locks: "unknown".} =
-  quit "to override!"
+  raise newException(Defect, "Please override")
 
 # Take `n` elements at a time (for efficiency)
 method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
