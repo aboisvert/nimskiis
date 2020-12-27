@@ -58,7 +58,7 @@ type
     batch*: int
 
 # Get the next element
-method next*[T](skiis: Skiis[T]): Option[T] {.base, locks: "unknown".} =
+method next*[T](skiis: Skiis[T]): lent Option[T] {.base, locks: "unknown".} =
   raise newException(Defect, "Please override")
 
 # Take `n` elements at a time (for efficiency)
@@ -68,7 +68,7 @@ method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
   var n = n
   var x = skiis.next()
   while (x.isSome):
-    result.add(x.get)
+    result.add(move(x.get))
     dec n
     if n == 0: return
     x = skiis.next()

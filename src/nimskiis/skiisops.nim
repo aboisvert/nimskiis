@@ -9,7 +9,6 @@ import
   flatmapskiis,
   filterskiis,
   helpers,
-  os,
   threadpool
 
 export

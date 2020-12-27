@@ -37,13 +37,14 @@ template withLock(t, x: untyped) =
   x
   release(t.lock)
 
-template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
-  while (var varName = t.head; varName != nil):
-    let next = varName.next
+template foreachNode[T](t: BlockingQueueObj[T], varName, code: untyped) =
+  var varName = t.head
+  while varName != nil:
+    let next = varName.next # save `next` since node could be deallocated
     code
-    node = varName
+    varName = next
 
-proc dispose[T](t: BlockingQueue[T]) =
+proc `=destroy`*[T](t: var BlockingQueueObj[T]) =
   withLock(t):
     t.foreachNode(node):
       deallocShared(node)

@@ -1,6 +1,4 @@
-import
-  skiis,
-  helpers
+import skiis
 
 type
   FilterSkiis[T] = ref object of Skiis[T]

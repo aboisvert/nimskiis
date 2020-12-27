@@ -36,7 +36,7 @@ template withLock(t, x: untyped) =
 template foreachNode[T](b: BufferO[T], varName, code: untyped) =
   var varName = b.head
   while varName != nil:
-    let next = varName.next
+    let next = varName.next # save `next` since node could be deallocated
     code
     varName = next
 

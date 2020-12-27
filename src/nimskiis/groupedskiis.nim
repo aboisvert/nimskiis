@@ -1,6 +1,4 @@
-import
-  skiis,
-  helpers
+import skiis
 
 type
   GroupedSkiis[T] = ref object of Skiis[seq[T]]

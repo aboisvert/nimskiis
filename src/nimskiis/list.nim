@@ -18,7 +18,7 @@ type
 template foreachNode*[T](this: List[T], varName, code: untyped) =
   var varName = this.head
   while varName != nil:
-    let next = varName.next
+    let next = varName.next # save `next` since node could be deallocated
     code
     varName = next
 

@@ -52,7 +52,7 @@ type
     stop: int
     step: int
 
-method next*(this: CountSkiis): Option[int] =
+method next*(this: CountSkiis): Option[int] {.locks: "unknown".} =
   withLock this.lock:
     if this.current <= this.stop:
       result = some(this.current)
