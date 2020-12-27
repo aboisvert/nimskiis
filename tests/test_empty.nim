@@ -2,6 +2,9 @@ import
   nimskiis,
   unittest
 
+# Get rid of unused module import (for test_all.nim)
+{.used.}
+
 suite "Empty Skiis":
   test "create empty skiis":
     let s: Skiis[int] = initEmptySkiis[int]()
@@ -13,6 +16,3 @@ suite "Empty Skiis":
 
 #  test "foo":
 #    let s = skiisFro
-
-
-

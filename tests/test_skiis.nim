@@ -1,5 +1,8 @@
 import test_common, math
 
+# Get rid of unused module import (for test_all.nim)
+{.used.}
+
 suite "Skiis":
 
   test "parForeach (1 to 10)":

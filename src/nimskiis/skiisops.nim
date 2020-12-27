@@ -167,7 +167,7 @@ proc map*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall, gcsafe.}): Skiis[
   initMapSkiis(input, op)
 
 proc flatMap*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall, gcsafe.}): Skiis[U] =
-  initFlatMapSkiis(input, op)
+  initFlatMapSkiis[T, U](input, op)
 
 proc filter*[T](input: Skiis[T], op: proc (t: T): bool {.nimcall, gcsafe.}): Skiis[T] =
   initFilterSkiis(input, op)

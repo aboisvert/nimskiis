@@ -1,5 +1,7 @@
-import
-  test_common
+import test_common
+
+# Get rid of unused module import (for test_all.nim)
+{.used.}
 
 suite "SeqSkiis":
 

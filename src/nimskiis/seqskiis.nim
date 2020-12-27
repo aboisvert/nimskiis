@@ -9,7 +9,7 @@ type
     values {.guard: lock.}: seq[T]
     position {.guard: lock.}: int
 
-method next*[T](this: SeqSkiis[T]): Option[T] {.locks: "unknown", base.} =
+proc next*[T](this: SeqSkiis[T]): Option[T] =
   withLock this.lock:
     template pos: int = this.position
     if pos < this.values.len:
@@ -18,9 +18,14 @@ method next*[T](this: SeqSkiis[T]): Option[T] {.locks: "unknown", base.} =
     else:
       result = none(T)
 
+proc SeqSkiis_next[T](this: Skiis[T]): Option[T] =
+  let this = cast[SeqSkiis[T]](this)
+  this.next()
+
 proc initSkiis*[T](values: varargs[T]): Skiis[T] =
   let this = new(SeqSkiis[T])
   lockInitWith this.lock:
+    this.nextProc = SeqSkiis_next[T]
     this.values = @values
     this.position = 0
   result = this

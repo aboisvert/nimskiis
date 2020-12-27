@@ -15,7 +15,7 @@ type
     noMore: bool
     consumerFinished: Cond
 
-method next*[T, U](this: FlatMapSkiis[T, U]): Option[U] {.locks: "unknown", base.} =
+proc next*[T, U](this: FlatMapSkiis[T, U]): Option[U] =
   while true:
     block:
       let buffered = this.buffer.pop()
@@ -50,8 +50,14 @@ method next*[T, U](this: FlatMapSkiis[T, U]): Option[U] {.locks: "unknown", base
         else:
           this.noMore = true
 
+proc FlatMapSkiis_next[T, U](this: Skiis[T]): Option[T] =
+  let this = cast[FlatMapSkiis[T, U]](this)
+  this.next()
+
+
 proc initFlatMapSkiis*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall.}): Skiis[U] =
   let this = new(FlatMapSkiis[T, U])
+  this.nextProc = FlatMapSkiis_next[T, U]
   this.input = input
   this.op = op
   this.buffer = newBuffer[U]()

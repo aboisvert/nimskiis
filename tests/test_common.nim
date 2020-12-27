@@ -18,6 +18,9 @@ export
   threadpool,
   sets
 
+# Get rid of unused module import (for test_all.nim)
+{.used.}
+
 type Sum* = object
   sum*: int64
   consumed*: int
@@ -52,7 +55,7 @@ type
     stop: int
     step: int
 
-method next*(this: CountSkiis): Option[int] {.locks: "unknown".} =
+proc next*(this: CountSkiis): Option[int] =
   withLock this.lock:
     if this.current <= this.stop:
       result = some(this.current)
@@ -60,9 +63,14 @@ method next*(this: CountSkiis): Option[int] {.locks: "unknown".} =
     else:
       result = none(int)
 
+proc CountSkiis_next[T: int](this: Skiis[T]): Option[T] =
+  let this = cast[CountSkiis](this)
+  this.next()
+
 proc countSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
    #skiisFromIterator[int](countIterator(i, j))
    let this = CountSkiis(current: start, stop: stop, step: step)
+   this.nextProc = CountSkiis_next[int]
    initLock(this.lock)
    result = this
 

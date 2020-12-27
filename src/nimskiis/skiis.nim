@@ -50,19 +50,24 @@ export
 #
 
 type
+  NextProc*[T] = proc (this: Skiis[T]): Option[T] {.nimcall.}
+
   Skiis*[T] {.inheritable.} = ref object of RootObj
+    nextProc*: NextProc[T]
 
   SkiisContext* = object
     parallelism*: int
     queue*: int
     batch*: int
 
+
 # Get the next element
-method next*[T](skiis: Skiis[T]): Option[T] {.base, locks: "unknown".} =
-  raise newException(Defect, "Please override")
+proc next*[T](skiis: Skiis[T]): Option[T] {.locks: "unknown".} =
+  let `method` = skiis.nextProc
+  `method`(skiis)
 
 # Take `n` elements at a time (for efficiency)
-method take*[T](skiis: Skiis[T], n: int): seq[T] {.base.} =
+proc take*[T](skiis: Skiis[T], n: int): seq[T] =
   if n <= 0: return newSeq[T]()
   result = newSeqOfCap[T](n)
   var n = n

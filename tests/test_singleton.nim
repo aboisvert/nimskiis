@@ -4,6 +4,9 @@ import
   sequtils,
   threadpool
 
+# Get rid of unused module import (for test_all.nim)
+{.used.}
+
 suite "Singleton":
   test "create empty singleton skiis":
     let s = initEmptySkiis[int]()
@@ -20,8 +23,3 @@ suite "Singleton":
     check:
       s.take(10) == @[42]
       s.take(10) == newSeq[int]()
-
-
-
-
-
