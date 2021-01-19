@@ -20,6 +20,7 @@ proc BlockingQueueSkiis_next[T](this: Skiis[T]): Option[T] {.locks: "unknown".} 
 
 proc asSkiis*[T](queue: BlockingQueue[T]): Skiis[T] =
   let this = new(BlockingQueueSkiis[T])
-  this.nextProc = BlockingQueueSkiis_next[T]
+  this.nextMethod = BlockingQueueSkiis_next[T]
+  this.takeMethod = defaultTake[T]
   this.queue = queue
   result = this

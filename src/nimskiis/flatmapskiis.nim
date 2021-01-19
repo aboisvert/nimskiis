@@ -57,7 +57,8 @@ proc FlatMapSkiis_next[T, U](this: Skiis[T]): Option[T] =
 
 proc initFlatMapSkiis*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall.}): Skiis[U] =
   let this = new(FlatMapSkiis[T, U])
-  this.nextProc = FlatMapSkiis_next[T, U]
+  this.nextMethod = FlatMapSkiis_next[T, U]
+  this.takeMethod = defaultTake[T]
   this.input = input
   this.op = op
   this.buffer = newBuffer[U]()

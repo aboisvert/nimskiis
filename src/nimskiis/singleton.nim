@@ -21,6 +21,7 @@ proc SingletonSkiis_next[T](this: Skiis[T]): Option[T] =
 proc initSingletonSkiis*[T](value: T): Skiis[T] =
   let this = new(SingletonSkiis[T])
   lockInitWith this.lock:
-    this.nextProc = SingletonSkiis_next[T]
+    this.nextMethod = SingletonSkiis_next[T]
+    this.takeMethod = defaultTake[T]
     this.value = some(value)
   result = this

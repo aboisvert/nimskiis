@@ -18,7 +18,8 @@ proc GroupedSkiis_next[T](this: Skiis[seq[T]]): Option[seq[T]] =
 
 proc initGroupedSkiis*[T](input: Skiis[T], size: int): Skiis[seq[T]] =
   let this = new(GroupedSkiis[T])
-  this.nextProc = GroupedSkiis_next[T]
+  this.nextMethod = GroupedSkiis_next[T]
+  this.takeMethod = defaultTake[seq[T]]
   this.size = size
   this.input = input
   result = this

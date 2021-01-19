@@ -14,5 +14,6 @@ proc take*[T](this: EmptySkiis[T], n: int): seq[T] =
 
 proc initEmptySkiis*[T](): Skiis[T] =
   let this = new(EmptySkiis[T])
-  this.nextProc = EmptySkiis_next[T]
+  this.nextMethod = EmptySkiis_next[T]
+  this.takeMethod = defaultTake[T]
   result = this

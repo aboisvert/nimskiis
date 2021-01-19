@@ -50,10 +50,12 @@ export
 #
 
 type
-  NextProc*[T] = proc (this: Skiis[T]): Option[T] {.nimcall.}
+  NextMethod*[T] = proc (this: Skiis[T]): Option[T] {.nimcall.}
+  TakeMethod*[T] = proc (this: Skiis[T], n: int): seq[T] {.nimcall.}
 
   Skiis*[T] {.inheritable.} = ref object of RootObj
-    nextProc*: NextProc[T]
+    nextMethod*: NextMethod[T]
+    takeMethod*: TakeMethod[T]
 
   SkiisContext* = object
     parallelism*: int
@@ -62,12 +64,28 @@ type
 
 
 # Get the next element
-proc next*[T](skiis: Skiis[T]): Option[T] {.locks: "unknown".} =
-  let `method` = skiis.nextProc
+proc next*[T](skiis: Skiis[T]): Option[T] {.inline.} =
+  let `method` = skiis.nextMethod
   `method`(skiis)
 
 # Take `n` elements at a time (for efficiency)
-proc take*[T](skiis: Skiis[T], n: int): seq[T] =
+#
+# This batch-oriented version of `next` allows client code to
+# to amortize costs associated with locking the underlying
+# data structure over a number of items.
+#
+# Skiis implementation should override this (virtual) method
+# and optimize their `take` logic to minimize locking overhead
+# for any number of items requested.
+proc take*[T](skiis: Skiis[T], n: int): seq[T] {.inline} =
+  let `method` = skiis.takeMethod
+  `method`(skiis, n)
+
+# Default implementation of `take`.
+#
+# Skiis implementations should provide behavior
+# equivalent to this proc.
+proc defaultTake*[T](skiis: Skiis[T], n: int): seq[T] =
   if n <= 0: return newSeq[T]()
   result = newSeqOfCap[T](n)
   var n = n

@@ -16,7 +16,8 @@ proc MapSkiis_next[T, U](this: Skiis[U]): Option[U] =
 
 proc initMapSkiis*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall.}): Skiis[U] =
   let this = new(MapSkiis[T, U])
-  this.nextProc = MapSkiis_next[T, U]
+  this.nextMethod = MapSkiis_next[T, U]
+  this.takeMethod = defaultTake[T]
   this.input = input
   this.op = op
   result = this

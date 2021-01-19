@@ -25,7 +25,8 @@ proc SeqSkiis_next[T](this: Skiis[T]): Option[T] =
 proc initSkiis*[T](values: varargs[T]): Skiis[T] =
   let this = new(SeqSkiis[T])
   lockInitWith this.lock:
-    this.nextProc = SeqSkiis_next[T]
+    this.nextMethod = SeqSkiis_next[T]
+    this.takeMethod = defaultTake[T]
     this.values = @values
     this.position = 0
   result = this

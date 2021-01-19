@@ -24,6 +24,7 @@ proc FlatMapSkiis_next[T](this: IteratorSkiis[T]): Option[T] =
 proc skiisFromIterator*[T](iter: iterator(): T): Skiis[T] =
   let this = new(IteratorSkiis[T])
   lockInitWith this.lock:
-    this.nextProc = FlatMapSkiis_next[T]
+    this.nextMethod = FlatMapSkiis_next[T]
+    this.takeMethod = defaultTake[T]
     this.iter = iter
   result = this

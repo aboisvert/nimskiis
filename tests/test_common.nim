@@ -68,11 +68,12 @@ proc CountSkiis_next[T: int](this: Skiis[T]): Option[T] =
   this.next()
 
 proc countSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
-   #skiisFromIterator[int](countIterator(i, j))
-   let this = CountSkiis(current: start, stop: stop, step: step)
-   this.nextProc = CountSkiis_next[int]
-   initLock(this.lock)
-   result = this
+  #skiisFromIterator[int](countIterator(i, j))
+  let this = CountSkiis(current: start, stop: stop, step: step)
+  this.nextMethod = CountSkiis_next[int]
+  this.takeMethod = defaultTake[int]
+  initLock(this.lock)
+  result = this
 
 proc sliceToSeq*[T](s: Slice[T]): seq[T] =
   result = newSeq[T](ord(s.b) - ord(s.a) + 1)
