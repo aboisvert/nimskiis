@@ -1,8 +1,6 @@
 import
   nimskiis,
-  unittest,
-  sequtils,
-  threadpool
+  unittest
 
 # Get rid of unused module import (for test_all.nim)
 {.used.}
