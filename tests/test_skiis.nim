@@ -134,8 +134,8 @@ suite "Skiis":
       buffer.add(x)
     check:
       # order is important here since `result` is lazy
-      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet
-      buffer.toSet == (@[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet)
+      result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet
+      buffer.toHashSet == (@[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet)
 
 
   test "map (1..10)":
