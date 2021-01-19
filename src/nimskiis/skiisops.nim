@@ -166,6 +166,10 @@ proc parSum*[T](input: Skiis[T], context: SkiisContext): T =
 proc map*[T, U](input: Skiis[T], op: proc (t: T): U {.nimcall, gcsafe.}): Skiis[U] =
   initMapSkiis(input, op)
 
+# This is currently marked as `unsafe` due to passing a closure across threads
+proc unsafeMap*[T, U](input: Skiis[T], op: proc (t: T): U {.closure.}): Skiis[U] =
+  initMapSkiis(input, op)
+
 proc flatMap*[T, U](input: Skiis[T], op: proc (t: T): List[U] {.nimcall, gcsafe.}): Skiis[U] =
   initFlatMapSkiis[T, U](input, op)
 
@@ -182,11 +186,13 @@ proc lookahead*[T](input: Skiis[T], context: SkiisContext): Skiis[T] =
 proc grouped*[T](input: Skiis[T], size: int): Skiis[seq[T]] =
   result = initGroupedSkiis(input, size)
 
-#proc listenAux[T](op: proc (t: T): void {.nimcall.}): proc (t: T): T {.nimcall.} =
-#  result = proc (t: T): T {.nimcall.}=
-#    try: op(t)
-#    except: discard
-#    t
+proc listenAux[T](op: proc (t: T): void): proc (t: T): T =
+ result = proc (t: T): T =
+   {.gcsafe.}:
+    try: op(t)
+    except: discard
+    t
 
-#proc listen*[T](input: Skiis[T], op: proc (t: T): void {.nimcall.}): Skiis[T] =
-  #input.map(listenAux(op))
+
+proc listen*[T](input: Skiis[T], f: proc(t: T): void): Skiis[T] =
+  unsafeMap[T, T](input, listenAux(f))

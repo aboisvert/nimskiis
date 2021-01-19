@@ -126,7 +126,7 @@ suite "Skiis":
     check:
       result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet
 
-#[
+
   test "listen":
     let s: Skiis[int] = countSkiis(1, 10)
     var buffer = newSeq[int]()
@@ -136,7 +136,7 @@ suite "Skiis":
       # order is important here since `result` is lazy
       result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet
       buffer.toSet == (@[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toSet)
-]#
+
 
   test "map (1..10)":
     let s: Skiis[int] = countSkiis(1, 10)
