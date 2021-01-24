@@ -23,44 +23,53 @@ type
     next: Node[T]
     first, last: int
 
-  BlockingQueueObj*[T] = object
+  BlockingQueue*[T] = object
     head, tail: Node[T]
     size, maxSize: int
     lock*: Lock
     nonEmpty, nonFull: Cond
     closed: bool
 
-  BlockingQueue*[T] = ref BlockingQueueObj[T]
-
 template withLock(t, x: untyped) =
   acquire(t.lock)
   x
   release(t.lock)
 
-template foreachNode[T](t: BlockingQueueObj[T], varName, code: untyped) =
+template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
   var varName = t.head
   while varName != nil:
     let next = varName.next # save `next` since node could be deallocated
     code
     varName = next
 
-proc `=destroy`*[T](t: var BlockingQueueObj[T]) =
-  withLock(t):
-    t.foreachNode(node):
-      deallocShared(node)
-    t.head = nil
-    t.tail = nil
-  deinitLock t.lock
+proc `=destroy`*[T](t: var BlockingQueue[T]) =
+  #echo "destroy call on BlockingQueueObj"
+  if t.head != nil:
+    withLock(t):
+      t.foreachNode(node):
+        deallocShared(node)
+      t.head = nil
+      t.tail = nil
+    deinitLock t.lock
+    deinitCond t.nonEmpty
+    deinitCond t.nonFull
 
-proc newBlockingQueue*[T](maxSize: int): BlockingQueue[T] =
-  new(result) # TODO - finalizer: dispose[T])
-  result.head = nil
-  result.tail = nil
-  result.size = 0
-  result.maxSize = maxSize
-  initLock result.lock
-  initCond result.nonEmpty
-  initCond result.nonFull
+proc init[T](this: var BlockingQueue[T], maxSize: int) =
+  this.head = nil
+  this.tail = nil
+  this.size = 0
+  this.maxSize = maxSize
+  initLock this.lock
+  initCond this.nonEmpty
+  initCond this.nonFull
+
+proc newBlockingQueuePtr*[T](maxSize: int): ptr BlockingQueue[T] =
+  result = allocShared0T(BlockingQueue[T])
+  init(result[], maxSize)
+
+proc newBlockingQueue*[T](maxSize: int): ref BlockingQueue[T] =
+  new(result)
+  init(result[], maxSize)
 
 # should be called with lock
 proc `$`*[T](this: BlockingQueue[T]): string =
@@ -70,15 +79,16 @@ proc `$`*[T](this: BlockingQueue[T]): string =
   result = result & ", tail=" & addressObj(this.tail[])
   result = result & ", size=" & $this.size
   result = result & ", maxSize=" & $this.maxSize
-  this.foreachNode(node):
+  this[].foreachNode(node):
     result = result & ", node#" & addressObj(node[]) & "("
     result = result & "first=" & $node.first
     result = result & ",last=" & $node.last & ")"
   result = result & ")"
 
-proc pop*[T](this: BlockingQueue[T]): Option[T] =
+proc pop*[T](this: var BlockingQueue[T]): Option[T] =
   withLock(this):
     var found = false
+    var wasFull = false
     template head: Node[T] = this.head
     template tail: Node[T] = this.tail
     template first: int = head.first
@@ -88,6 +98,8 @@ proc pop*[T](this: BlockingQueue[T]): Option[T] =
         found = true
         result = some(head.elems[first])
         inc(first)
+        if this.size == this.maxSize:
+          wasFull = true
         dec(this.size)
         if first == last and tail != head:
           let delete = head
@@ -98,25 +110,30 @@ proc pop*[T](this: BlockingQueue[T]): Option[T] =
         result = none(T)
       else:
         this.nonEmpty.wait(this.lock)
+        this.nonEmpty.signal() # chained broadcast
 
-    if result.isSome:
+    if wasFull:
       this.nonfull.signal()
 
-iterator items*[T](this: BlockingQueue[T]): int =
+iterator mitems*[T](this: var BlockingQueue[T]): int =
   var x = this.pop()
   while x.isSome:
     yield x.get
     x = this.pop()
 
-proc push*[T](this: BlockingQueue[T]; y: T): void =
+proc push*[T](this: var BlockingQueue[T]; y: T): void =
   withLock(this):
     if this.closed:
       raise newException(Defect, "Cannot push to a closed BlockingQueue")
+    var receivedSignal = false
     while this.size >= this.maxSize and not this.closed:
       this.nonFull.wait(this.lock)
+      receivedSignal = true
+    if receivedSignal: this.nonFull.signal() # chained broadcast
     if this.closed:
       raise newException(Defect, "Cannot push to a closed BlockingQueue")
 
+    let sizeBefore = this.size
     var node = this.tail
     if node == nil or (node.first == 0 and node.last == ElemsPerNode):
       node = cast[type node](allocShared0(sizeof(node[])))
@@ -135,14 +152,16 @@ proc push*[T](this: BlockingQueue[T]; y: T): void =
     else:
       raise newException(Defect, "WTF!")
     inc(this.size)
-    this.nonEmpty.signal()
+    if sizeBefore == 0:
+      this.nonEmpty.signal()
 
 proc toSeq*[T](buf: BlockingQueue[T]): seq[T] =
   result = newSeq[T]()
   for x in buf.items:
     result.add(x)
 
-proc close*[T](this: BlockingQueue[T]): void =
+proc close*[T](this: var BlockingQueue[T]): void =
+  #echo "BlockingQueue.close() ", $this
   withLock(this):
     this.closed = true
     this.nonEmpty.signal()

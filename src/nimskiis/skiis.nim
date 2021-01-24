@@ -1,11 +1,9 @@
 import
-  options,
-  locks,
-  os
+  std/options,
+  std/os,
+  sharedptr
 
-export
-  options,
-  locks
+export options
 
 # Base Skiis definitions.
 #
@@ -50,12 +48,14 @@ export
 #
 
 type
-  NextMethod*[T] = proc (this: Skiis[T]): Option[T] {.nimcall.}
-  TakeMethod*[T] = proc (this: Skiis[T], n: int): seq[T] {.nimcall.}
+  NextMethod*[T] = proc (this: ptr SkiisObj[T]): Option[T] {.nimcall.}
+  TakeMethod*[T] = proc (this: ptr SkiisObj[T], n: int): seq[T] {.nimcall.}
 
-  Skiis*[T] {.inheritable.} = ref object of RootObj
+  SkiisObj*[T] = object of RootObj
     nextMethod*: NextMethod[T]
     takeMethod*: TakeMethod[T]
+
+  Skiis*[T] = SharedPtr[SkiisObj[T]]
 
   SkiisContext* = object
     parallelism*: int
@@ -63,10 +63,20 @@ type
     batch*: int
 
 
+proc asSharedPtr*[T; OBJ: SkiisObj[T]](
+  skiisObj: ptr OBJ,
+  destructor: Destructor[OBJ]
+): Skiis[T] =
+  cast[Skiis[T]](newSharedPtr[OBJ](skiisObj, destructor))
+
+proc downcast*[T; OBJ: SkiisObj[T]](this: ptr SkiisObj[T]): ptr OBJ =
+  cast[ptr OBJ](this)
+
 # Get the next element
 proc next*[T](skiis: Skiis[T]): Option[T] {.inline.} =
-  let `method` = skiis.nextMethod
-  `method`(skiis)
+  let skiisObj = skiis.asPtr
+  let `method` = skiisObj.nextMethod
+  `method`(skiisObj)
 
 # Take `n` elements at a time (for efficiency)
 #
@@ -78,23 +88,25 @@ proc next*[T](skiis: Skiis[T]): Option[T] {.inline.} =
 # and optimize their `take` logic to minimize locking overhead
 # for any number of items requested.
 proc take*[T](skiis: Skiis[T], n: int): seq[T] {.inline} =
-  let `method` = skiis.takeMethod
-  `method`(skiis, n)
+  let skiisObj = skiis.asPtr
+  let `method` = skiisObj.takeMethod
+  `method`(skiisObj, n)
 
 # Default implementation of `take`.
 #
 # Skiis implementations should provide behavior
 # equivalent to this proc.
-proc defaultTake*[T](skiis: Skiis[T], n: int): seq[T] =
+proc defaultTake*[T](skiis: ptr SkiisObj[T], n: int): seq[T] =
   if n <= 0: return newSeq[T]()
   result = newSeqOfCap[T](n)
+  let next = skiis.nextMethod
   var n = n
-  var x = skiis.next()
+  var x = next(skiis)
   while (x.isSome):
     result.add(move(x.get))
     dec n
     if n == 0: return
-    x = skiis.next()
+    x = next(skiis)
 
 template foreach*[T](skiis: Skiis[T], name, body: untyped) =
   var next = skiis.next()
@@ -102,6 +114,17 @@ template foreach*[T](skiis: Skiis[T], name, body: untyped) =
     let name = next.get
     body
     next = skiis.next()
+
+template foldl*[T](skiis: Skiis[T], accName, elemName, body: untyped): T =
+  let first: Option[T] = skiis.next()
+  assert first.isSome, "Can't fold empty sequences"
+  var accName: T = first.get
+  var next: Option[T] = skiis.next()
+  while (next.isSome):
+    let elemName = next.get
+    accName = body
+    next = skiis.next()
+  accName
 
 proc toSeq*[T](skiis: Skiis[T]): seq[T] =
   result = newSeq[T]()

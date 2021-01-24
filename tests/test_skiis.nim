@@ -1,30 +1,37 @@
-import test_common, math
+import
+  test_common,
+  nimskiis/sharedptr,
+  std/math,
+  std/strformat
+
 
 # Get rid of unused module import (for test_all.nim)
 {.used.}
 
 suite "Skiis":
 
-  test "parForeach (1 to 10)":
-    let s = countSkiis(1, 10)
-    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    let buffer = newBuffer[int]()
-    s.parForeach(context) do (x: int) -> void:
-      buffer.push(x)
-    check:
-      buffer.toSeq.sum == 55
+  for i in 0..1: #100_000:
 
-  test "parForeach (1 to 1000)":
-    let s = countSkiis(1, 1000)
-    let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    let buffer = newBuffer[int]()
-    s.parForeach(context) do (x: int) -> void:
-      buffer.push(x)
-    check:
-      buffer.toSeq.sum == 500_500.int64
+    test fmt"parForeach (1 to 10) {i}":
+      let s = newCountSkiis(1, 10000)
+      let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+      let buffer = newBuffer[int]()
+      s.parForeach(context) do (x: int) -> void:
+        buffer.push(x)
+      check:
+        buffer.toSeq.sum == 50_005_000.int64
+
+    test "parForeach (1 to 1000)":
+      let s = newCountSkiis(1, 1000)
+      let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+      let buffer = newBuffer[int]()
+      s.parForeach(context) do (x: int) -> void:
+        buffer.push(x)
+      check:
+        buffer.toSeq.sum == 500_500.int64
 
     test "parForeach (1 to 1000) parallelism=2":
-      let s = countSkiis(1, 1000)
+      let s = newCountSkiis(1, 1000)
       let context = SkiisContext(parallelism: 2, queue: 1, batch: 1)
       let buffer = newBuffer[int]()
       s.parForeach(context) do (x: int) -> void:
@@ -34,7 +41,7 @@ suite "Skiis":
         sum == 500500.int64
 
     test "parForeach (1 to 1000) parallelism=2 queue=10":
-      let s = countSkiis(1, 1000)
+      let s = newCountSkiis(1, 1000)
       let context = SkiisContext(parallelism: 2, queue: 10, batch: 1)
       let buffer = newBuffer[int]()
       s.parForeach(context) do (x: int) -> void:
@@ -43,9 +50,11 @@ suite "Skiis":
       check:
         sum == 500500.int64
 
-    test "parMap (1 to 10)":
-      let s: Skiis[int] = countSkiis(1, 3)
+    test fmt"parMap (1 to 10) {i}":
+      let s: Skiis[int] = newCountSkiis(1, 3)
       let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
+
+      #echo "s is ", addressPtr(s.asPtr)
       let skiis = s.parMap(context) do (x: int) -> int:
         x + 1
       let result = skiis.toSet
@@ -65,12 +74,9 @@ suite "Skiis":
         result == @["1", "2", "3"].toHashSet
 
     test "parMap 1..1000 works with strings":
-      let s: Skiis[int] = countSkiis(1, 1000)
+      let s: Skiis[int] = newCountSkiis(1, 1000)
       let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
       let skiis = s.parMap(context) do (x: int) -> string:
-        # fullCollect doesn't seem legal in this context, causes:
-        #   SIGSEGV: Illegal storage access. (Attempt to read from nil?)
-        # GC_fullCollect()
         $x
       GC_fullCollect()
       let result = skiis.toSet
@@ -97,7 +103,7 @@ suite "Skiis":
       result == 9
 
   test "parSum (1 to 10,000)":
-    let s: Skiis[int] = countSkiis(1, 10_000)
+    let s: Skiis[int] = newCountSkiis(1, 10_000)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
     let result = s.parSum(context)
     check:
@@ -111,7 +117,7 @@ suite "Skiis":
       result.toSeq == @[2, 4]
 
   test "grouped (1..10)":
-    let s: Skiis[int] = countSkiis(1, 10)
+    let s: Skiis[int] = newCountSkiis(1, 10)
     let grouped = s.grouped(3)
     check:
       grouped.next() == some(@[1, 2, 3])
@@ -121,46 +127,47 @@ suite "Skiis":
       grouped.next() == none(seq[int])
 
   test "lookahead":
-    let s: Skiis[int] = countSkiis(1, 10)
+    let s: Skiis[int] = newCountSkiis(1, 10)
     let result = s.lookahead(SkiisContext(parallelism: 4, queue: 1, batch: 1))
     check:
       result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet
 
-
   test "listen":
-    let s: Skiis[int] = countSkiis(1, 10)
+    let s: Skiis[int] = newCountSkiis(1, 10)
     var buffer = newSeq[int]()
     let result = s.listen do (x: int) -> void:
       buffer.add(x)
     check:
       # order is important here since `result` is lazy
       result.toSet == @[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet
+    check:
       buffer.toHashSet == (@[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].toHashSet)
 
-
   test "map (1..10)":
-    let s: Skiis[int] = countSkiis(1, 10)
+    let s: Skiis[int] = newCountSkiis(1, 10)
     let result = s.map do (x: int) -> int: (x + 1)
     check:
       result.toSet == @[2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].toHashSet
 
   test "flatMap (1..10)":
     let s: Skiis[int] = initSkiis(@[1, 3, 5])
-    let result = s.flatMap do (x: int) -> List[int]: newList(x, x + 1)
+    let result = s.flatMap do (x: int) -> seq[int]: @[x, x + 1]
     check:
       result.toSet == @[1, 2, 3, 4, 5, 6].toHashSet
 
-  test "flatMap (1..10_000)":
-    let s: Skiis[int] = countSkiis(1, 10_000)
+
+
+  test "flatMap (1..10_000) parSum()":
+    let s: Skiis[int] = newCountSkiis(1, 10_000)
     let context = SkiisContext(parallelism: 4, queue: 1, batch: 1)
-    let result = s.flatMap do (x: int) -> List[int]:
-      if x mod 2 == 0: newList(x, x + 1)
-      else: newList(x, x + 1, x + 2)
+    let result = s.flatMap do (x: int) -> seq[int]:
+      if x mod 2 == 0: @[x, x + 1]
+      else: @[x, x + 1, x + 2]
     check:
       result.parSum(context) == 125030000
 
   test "filter (1..10)":
-    let s: Skiis[int] = countSkiis(1, 10)
+    let s: Skiis[int] = newCountSkiis(1, 10)
     let result = s.filter do (x: int) -> bool: (x mod 2) == 0
     check:
       result.toSet == @[2, 4, 6, 8, 10].toHashSet

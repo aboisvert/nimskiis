@@ -1,26 +1,30 @@
-import skiis, blockingqueue
+import skiis, blockingqueue, sharedptr, helpers
 
 #--- BlockingQueue wrapper ---
 
 type
-  BlockingQueueSkiis[T] = ref object of Skiis[T]
-    queue: BlockingQueue[T]
+  BlockingQueueSkiis*[T] = object of SkiisObj[T]
+    queue: ptr BlockingQueue[T]
 
-proc next*[T](this: BlockingQueueSkiis[T]): Option[T] {.locks: "unknown".} =
-  let value = this.queue.pop()
-  when T is ref:
-    # deepCopy refs across threads
-    deepCopy(result, value)
-  else:
-    result = value
+proc BlockingQueueSkiis_destructor[T](this: var BlockingQueueSkiis[T]) =
+  #echo "destroy call on BlockingQueueSkiisObj"
+  if this.queue != nil:
+    deallocShared(this.queue)
+    this.queue = nil
 
-proc BlockingQueueSkiis_next[T](this: Skiis[T]): Option[T] {.locks: "unknown".} =
-  let this = cast[BlockingQueueSkiis[T]](this)
+proc `=destroy`*[T](this: var BlockingQueueSkiis[T]) =
+  BlockingQueueSkiis_destructor(this)
+
+proc next[T](this: ptr BlockingQueueSkiis[T]): Option[T] =
+  result = this.queue[].pop()
+
+proc BlockingQueueSkiis_next[T](this: ptr SkiisObj[T]): Option[T] =
+  let this = downcast[T, BlockingQueueSkiis[T]](this)
   this.next()
 
-proc asSkiis*[T](queue: BlockingQueue[T]): Skiis[T] =
-  let this = new(BlockingQueueSkiis[T])
+proc asSkiis*[T](queue: ptr BlockingQueue[T]): Skiis[T] =
+  let this = allocShared0T(BlockingQueueSkiis[T])
   this.nextMethod = BlockingQueueSkiis_next[T]
   this.takeMethod = defaultTake[T]
   this.queue = queue
-  result = this
+  result = asSharedPtr[T, BlockingQueueSkiis[T]](this, BlockingQueueSkiis_destructor[T])

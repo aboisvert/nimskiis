@@ -24,6 +24,7 @@ type
 
   BufferO*[T] = object
     head, tail: Node[T]
+    size: int
     lock*: Lock
 
   Buffer*[T] = ref BufferO[T]
@@ -48,6 +49,7 @@ proc disposeBuffer[T](b: var BufferO[T]) =
   deinitLock b.lock
 
 proc `=destroy`*[T](b: var BufferO[T]) =
+  #echo "destroy call on BlockingQueueObj"
   disposeBuffer(b)
 
 proc newBuffer*[T](): Buffer[T] =
@@ -64,6 +66,7 @@ proc pop*[T](this: Buffer[T]): Option[T] =
     template last: int = head.last
     if head != nil and first < last:
       result = some(head.elems[first])
+      dec(this.size)
       inc(first)
       if first == last and tail != head:
         let delete = head
@@ -80,6 +83,7 @@ iterator items*[T](this: Buffer[T]): int =
 
 proc push*[T](this: Buffer[T]; y: T): void =
   withLock(this):
+    inc(this.size)
     var node = this.tail
     if node == nil or (node.first == 0 and node.last == ElemsPerNode):
       node = cast[type node](allocShared0(sizeof(node[])))
@@ -97,6 +101,10 @@ proc push*[T](this: Buffer[T]; y: T): void =
       node.elems[node.first] = y
     else:
       discard # ???
+
+proc size*[T](this: Buffer[T]): int =
+  withLock(this):
+    result = this.size
 
 proc toSeq*[T](buf: Buffer[T]): seq[T] =
   result = newSeq[T]()

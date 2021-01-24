@@ -1,14 +1,14 @@
 import
   helpers,
-  skiisops,
+  skiis,
   locks
 
 type
-  IteratorSkiis[T] = ref object of Skiis[T]
+  IteratorSkiis[T] = object of SkiisObj[T]
     lock: Lock
     iter {.guard: lock.}: iterator(): T {.closure.}
 
-proc next*[T](this: IteratorSkiis[T]): Option[T] =
+proc next*[T](this: var IteratorSkiis[T]): Option[T] =
   withLock this.lock:
     #echo "locking: " & $cast[int](unsafeAddr(this.lock))
     let tentative = this.iter()
@@ -17,14 +17,14 @@ proc next*[T](this: IteratorSkiis[T]): Option[T] =
     else:
       result = none(T)
 
-proc FlatMapSkiis_next[T](this: IteratorSkiis[T]): Option[T] =
-  let this = cast[IteratorSkiis[T]](this)
+proc FlatMapSkiis_next[T](this: ptr SkiisObj[T]): Option[T] =
+  let this = downcast[T, IteratorSkiis](this)
   this.next()
 
 proc skiisFromIterator*[T](iter: iterator(): T): Skiis[T] =
-  let this = new(IteratorSkiis[T])
+  var this: IteratorSkiis[T]
   lockInitWith this.lock:
     this.nextMethod = FlatMapSkiis_next[T]
     this.takeMethod = defaultTake[T]
     this.iter = iter
-  result = this
+  result = asSharedPtr[T](this)

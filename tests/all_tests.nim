@@ -4,4 +4,5 @@ import
   test_empty,
   test_singleton,
   test_seqskiis,
-  test_iteratorskiis
+  test_iteratorskiis,
+  test_parmap

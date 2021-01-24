@@ -1,15 +1,21 @@
 import
   skiis,
   helpers,
-  locks
+  std/locks
 
 type
-  SeqSkiis[T] = ref object of Skiis[T]
+  SeqSkiis*[T] = object of SkiisObj[T]
     lock: Lock
-    values {.guard: lock.}: seq[T]
-    position {.guard: lock.}: int
+    values: seq[T] # {.guard: lock.}
+    position: int #{.guard: lock.}
 
-proc next*[T](this: SeqSkiis[T]): Option[T] =
+proc SeqSkiis_destroy[T](this: var SeqSkiis[T]) =
+  deinitLock(this.lock)
+
+proc `=destroy`[T](this: var SeqSkiis[T]) =
+  SeqSkiis_destroy(this)
+
+proc SeqSkiis_next2[T](this: ptr SeqSkiis[T]): Option[T] =
   withLock this.lock:
     template pos: int = this.position
     if pos < this.values.len:
@@ -18,15 +24,16 @@ proc next*[T](this: SeqSkiis[T]): Option[T] =
     else:
       result = none(T)
 
-proc SeqSkiis_next[T](this: Skiis[T]): Option[T] =
-  let this = cast[SeqSkiis[T]](this)
-  this.next()
+proc SeqSkiis_next1[T](this: ptr SkiisObj[T]): Option[T] =
+  let this = cast[ptr SeqSkiis[T]](this)
+  SeqSkiis_next2(this)
 
 proc initSkiis*[T](values: varargs[T]): Skiis[T] =
-  let this = new(SeqSkiis[T])
+  let this = allocShared0T(SeqSkiis[T])
   lockInitWith this.lock:
-    this.nextMethod = SeqSkiis_next[T]
-    this.takeMethod = defaultTake[T]
-    this.values = @values
-    this.position = 0
-  result = this
+    this[].takeMethod = defaultTake[T]
+    this[].nextMethod = SeqSkiis_next1[T]
+    this[].values = @values
+    this[].position = 0
+
+  result = asSharedPtr[T, SeqSkiis[T]](this, SeqSkiis_destroy[T])

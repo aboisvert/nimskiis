@@ -3,10 +3,13 @@ import
   nimskiis/buffer,
   nimskiis/blockingqueue,
   nimskiis/helpers,
-  unittest,
-  sequtils,
-  threadpool,
-  sets
+  nimskiis/sharedptr,
+  std/unittest,
+  std/sequtils,
+  std/locks,
+  std/threadpool,
+  std/sets,
+  std/sugar
 
 export
   nimskiis,
@@ -16,7 +19,8 @@ export
   unittest,
   sequtils,
   threadpool,
-  sets
+  sets,
+  sugar
 
 # Get rid of unused module import (for test_all.nim)
 {.used.}
@@ -43,37 +47,55 @@ proc countIterator*(a, b: int): iterator (): int =
       yield x
       inc x
 
-proc consumeSum*(skiis: ptr Wrapper[Skiis[int]]): Sum =
-  (skiis.obj).foreach(n):
+
+proc consumeSum*(skiis: Skiis[int]): Sum =
+  skiis.foreach(n):
     result.sum += n
     result.consumed += 1
 
 type
-  CountSkiis = ref object of Skiis[int]
+  CountSkiis = object of SkiisObj[int]
     lock: Lock
     current: int
     stop: int
     step: int
 
-proc next*(this: CountSkiis): Option[int] =
+proc CountSkiis_destructor(this: var CountSkiis) =
+  #echo "CountSkiis.destructor"
+  release(this.lock)
+
+proc `=destroy`(this: var CountSkiis) =
+  #echo "CountSkiis.destroy"
+  CountSkiis_destructor(this)
+
+proc `$`*(this: CountSkiis): string =
+  "CountSkiis(current=" & $this.current &
+    ", stop=" & $this.stop & ", step=" & $this.step & ")"
+
+proc CountSkiis_next(this: ptr CountSkiis): Option[int] =
   withLock this.lock:
+    #echo "CountSkiis_next4 ", addressPtr(this)
+    #echo "CountSkiis_next5 ", $this[]
     if this.current <= this.stop:
       result = some(this.current)
       inc(this.current, this.step)
     else:
       result = none(int)
 
-proc CountSkiis_next[T: int](this: Skiis[T]): Option[T] =
-  let this = cast[CountSkiis](this)
-  this.next()
+proc CountSkiis_next[T: int](this: ptr SkiisObj[T]): Option[int] =
+  let this = downcast[int, CountSkiis](this)
+  this.CountSkiis_next()
 
-proc countSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
+proc newCountSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
   #skiisFromIterator[int](countIterator(i, j))
-  let this = CountSkiis(current: start, stop: stop, step: step)
+  let this = allocShared0T(CountSkiis)
+  this.current = start
+  this.stop = stop
+  this.step = step
   this.nextMethod = CountSkiis_next[int]
   this.takeMethod = defaultTake[int]
   initLock(this.lock)
-  result = this
+  result = asSharedPtr[int, CountSkiis](this, CountSkiis_destructor)
 
 proc sliceToSeq*[T](s: Slice[T]): seq[T] =
   result = newSeq[T](ord(s.b) - ord(s.a) + 1)

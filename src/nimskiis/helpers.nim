@@ -28,11 +28,20 @@ template debug*[T](s: string, p: ref T) =
 proc identity*[T](t: T): T =
   t
 
-type Wrapper*[T] = object
-  obj*: T
+iterator grouped*[T](s: seq[T], size: int): seq[T] =
+  var group: seq[T] = newSeqOfCap[T](size)
+  if size <= 0: return
+  for x in s:
+    group.add(x)
+    if group.len >= size:
+      yield group
+      group = newSeqOfCap[T](size)
 
-proc deepClone*[T](t: T): T =
-  when T is object or T is tuple or T is string or T is seq or T is ref or T is array:
-    deepCopy result, t
-  else:
-    t
+proc grouped*[T](s: seq[T], size: int): seq[seq[T]] =
+  var group: seq[T] = newSeqOfCap[T](size)
+  if size <= 0: return
+  for x in s:
+    group.add x
+    if group.len >= size:
+      result.add group
+      group = newSeqOfCap[T](size)

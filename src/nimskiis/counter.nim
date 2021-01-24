@@ -1,42 +1,52 @@
-import locks
+import locks, helpers
 
-{.push stackTrace:off.}
+#{.push stackTrace:off.}
 
 type
-  CounterO* = object
+  Counter* = object
+    alive: bool
     value: int
     maxValue: int
     lock: Lock
     maxValueReached: Cond
 
-  Counter* = ref CounterO
+proc dispose*(this: var Counter) =
+  if this.alive:
+    this.alive = false
+    deinitLock(this.lock)
+    deinitCond(this.maxValueReached)
 
-proc disposeCounter*(this: var CounterO): void =
-  deinitLock(this.lock)
-  deinitCond(this.maxValueReached)
+proc `=destroy`*(this: var Counter) =
+  dispose(this)
 
-proc `=destroy`*(c: var CounterO) =
-  disposeCounter(c)
+proc init(this: var Counter, maxValue: int) =
+  this.alive = true
+  this.value = 0
+  this.maxValue = maxValue
+  initLock(this.lock)
+  initCond(this.maxValueReached)
 
-proc newCounter*(maxValue: int): Counter =
+proc newCounterPtr*(maxValue: int): ptr Counter =
+  result = allocShared0T(Counter)
+  init(result[], maxValue)
+
+proc newCounter*(maxValue: int): ref Counter =
   new(result)
-  result.value = 0
-  result.maxValue = maxValue
-  initLock(result.lock)
-  initCond(result.maxValueReached)
+  init(result[], maxValue)
 
-proc await*(this: Counter) =
+proc await*(this: var Counter) =
   acquire(this.lock)
   if this.value < this.maxValue:
-    wait(this.maxValueReached, this.lock)
+    this.maxValueReached.wait(this.lock)
+    this.maxValueReached.signal() # chained broadcast
   release(this.lock)
 
-proc inc*(this: Counter, n = 1): int {.discardable.} =
+proc inc*(this: var Counter, n = 1): int {.discardable.} =
   acquire(this.lock)
   inc(this.value, n)
   result = this.value
   release(this.lock)
   if result >= this.maxValue:
-    signal(this.maxValueReached)
+    this.maxValueReached.signal()
 
-{.pop.}
+#{.pop.}
