@@ -81,13 +81,13 @@ proc CountSkiis_next(this: ptr CountSkiis): Option[int] =
       inc(this.current, this.step)
     else:
       result = none(int)
+    #echo "CountSkiis_next is ", result
 
 proc CountSkiis_next[T: int](this: ptr SkiisObj[T]): Option[int] =
   let this = downcast[int, CountSkiis](this)
   this.CountSkiis_next()
 
 proc newCountSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
-  #skiisFromIterator[int](countIterator(i, j))
   let this = allocShared0T(CountSkiis)
   this.current = start
   this.stop = stop
@@ -98,15 +98,14 @@ proc newCountSkiis*(start: int, stop: int, step: int = 1): Skiis[int] =
   result = asSharedPtr[int, CountSkiis](this, CountSkiis_destructor)
 
 proc sliceToSeq*[T](s: Slice[T]): seq[T] =
-  result = newSeq[T](ord(s.b) - ord(s.a) + 1)
-  var i = 0
+  result = newSeqOfCap[T](ord(s.b) - ord(s.a) + 1)
   for x in s.a .. s.b:
-    result[i] = x
-    inc(i)
+    result.add x
 
 proc toSet*[T](skiis: Skiis[T]): HashSet[T] =
   init(result)
   skiis.foreach(n):
+    #echo "Skiis.toSet ", n
     result.incl(n)
 
 proc toSet*[T](iter: iterator(): T): HashSet[T] =

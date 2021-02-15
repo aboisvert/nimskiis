@@ -52,6 +52,7 @@ type
   TakeMethod*[T] = proc (this: ptr SkiisObj[T], n: int): seq[T] {.nimcall.}
 
   SkiisObj*[T] = object of RootObj
+    debugName*: string
     nextMethod*: NextMethod[T]
     takeMethod*: TakeMethod[T]
 
@@ -62,12 +63,19 @@ type
     queue*: int
     batch*: int
 
+  ValueEnv*[T; ENV] = object
+    value*: T
+    env*: SharedPtr[ENV]
 
-proc asSharedPtr*[T; OBJ: SkiisObj[T]](
+proc `$`*[T](this: SkiisObj[T]): string =
+  if this.debugName.len > 0: this.debugName
+  else: "SkiisObj[T](?)"
+
+template asSharedPtr*[T; OBJ: SkiisObj[T]](
   skiisObj: ptr OBJ,
   destructor: Destructor[OBJ]
 ): Skiis[T] =
-  cast[Skiis[T]](newSharedPtr[OBJ](skiisObj, destructor))
+  cast[Skiis[T]](initSharedPtr[OBJ](skiisObj, destructor))
 
 proc downcast*[T; OBJ: SkiisObj[T]](this: ptr SkiisObj[T]): ptr OBJ =
   cast[ptr OBJ](this)
@@ -103,7 +111,7 @@ proc defaultTake*[T](skiis: ptr SkiisObj[T], n: int): seq[T] =
   var n = n
   var x = next(skiis)
   while (x.isSome):
-    result.add(move(x.get))
+    result.add(x.get)
     dec n
     if n == 0: return
     x = next(skiis)

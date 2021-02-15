@@ -10,8 +10,10 @@
 # pop() removes the current first element of the bag.
 
 import
-  options,
-  locks
+  std/options,
+  std/locks,
+  std/sets,
+  helpers
 
 const
   ElemsPerNode = 100
@@ -22,43 +24,47 @@ type
     next: Node[T]
     first, last: int
 
-  BufferO*[T] = object
+  Buffer*[T] = object
     head, tail: Node[T]
     size: int
     lock*: Lock
-
-  Buffer*[T] = ref BufferO[T]
 
 template withLock(t, x: untyped) =
   acquire(t.lock)
   x
   release(t.lock)
 
-template foreachNode[T](b: BufferO[T], varName, code: untyped) =
+template foreachNode[T](b: Buffer[T], varName, code: untyped) =
   var varName = b.head
   while varName != nil:
     let next = varName.next # save `next` since node could be deallocated
     code
     varName = next
 
-proc disposeBuffer[T](b: var BufferO[T]) =
+proc disposeBuffer*[T](b: var Buffer[T]) =
+  #echo "disposeBuffer"
   withLock(b):
     b.foreachNode(node): deallocShared(node)
     b.head = nil
     b.tail = nil
   deinitLock b.lock
 
-proc `=destroy`*[T](b: var BufferO[T]) =
-  #echo "destroy call on BlockingQueueObj"
+proc `=destroy`*[T](b: var Buffer[T]) =
+  echo "destroy call on Buffer"
   disposeBuffer(b)
 
-proc newBuffer*[T](): Buffer[T] =
-  new(result) # TODO - finalizer - disposeBuffer[T])
+proc newBufferPtr*[T](): ptr Buffer[T] =
+  result = allocShared0T(Buffer[T])
   initLock result.lock
   result.head = nil
   result.tail = nil
 
-proc pop*[T](this: Buffer[T]): Option[T] =
+proc initBuffer*[T](): Buffer[T] =
+  initLock result.lock
+  result.head = nil
+  result.tail = nil
+
+proc pop*[T](this: var Buffer[T]): Option[T] =
   withLock(this):
     template head: Node[T] = this.head
     template tail: Node[T] = this.tail
@@ -75,13 +81,21 @@ proc pop*[T](this: Buffer[T]): Option[T] =
     else:
       result = none(T)
 
-iterator items*[T](this: Buffer[T]): int =
+iterator popItems*[T](this: Buffer[T]): T =
   var x = this.pop()
   while x.isSome:
     yield x.get
     x = this.pop()
 
-proc push*[T](this: Buffer[T]; y: T): void =
+# TODO:  this shouldn't pop() items!  should be read-only
+iterator items*[T](this: var Buffer[T]): T =
+  var x = this.pop()
+  while x.isSome:
+    yield x.get
+    x = this.pop()
+
+
+proc push*[T](this: var Buffer[T]; y: sink T): void =
   withLock(this):
     inc(this.size)
     var node = this.tail
@@ -102,19 +116,24 @@ proc push*[T](this: Buffer[T]; y: T): void =
     else:
       discard # ???
 
-proc size*[T](this: Buffer[T]): int =
+proc size*[T](this: var Buffer[T]): int {.inline.} =
   withLock(this):
     result = this.size
 
-proc toSeq*[T](buf: Buffer[T]): seq[T] =
+proc toSeq*[T](buf: var Buffer[T]): seq[T] =
   result = newSeq[T]()
   for x in buf.items:
     result.add(x)
 
-proc `$`*[T](this: Buffer[T]): string =
+proc toHashSet*[T](buf: var Buffer[T]): HashSet[T] =
+  result = initHashSet[T]()
+  for x in buf.items:
+    result.incl(x)
+
+proc `$`*[T](this: var Buffer[T]): string =
   result = "Buffer("
   template p(x: untyped): string = $cast[int](x)
-  withLock(this):
+  withLock(this.lock):
     result = result & "head=" & p(this.head)
     result = result & ", tail=" & p(this.tail)
     this.foreachNode(node):

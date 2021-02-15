@@ -1,8 +1,7 @@
 import
   skiis,
   helpers,
-  std/locks,
-  sharedptr
+  std/locks
 
 type
   SingletonSkiis[T] = object of SkiisObj[T]

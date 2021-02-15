@@ -1,4 +1,4 @@
-import skiis, helpers, sharedptr
+import skiis, helpers
 
 type
   EmptySkiis[T] = object of SkiisObj[T]

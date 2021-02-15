@@ -4,11 +4,12 @@ import skiis, blockingqueue, sharedptr, helpers
 
 type
   BlockingQueueSkiis*[T] = object of SkiisObj[T]
-    queue: ptr BlockingQueue[T]
+    queue: ptr BlockingQueue[T] # owned
 
 proc BlockingQueueSkiis_destructor[T](this: var BlockingQueueSkiis[T]) =
   #echo "destroy call on BlockingQueueSkiisObj"
   if this.queue != nil:
+    `=destroy`(this.queue[])
     deallocShared(this.queue)
     this.queue = nil
 

@@ -6,7 +6,7 @@ type
     input: Skiis[T]
 
 proc GroupedSkiis_destructor[T](this: var GroupedSkiis[T]) =
-  discard
+  `=destroy`(this.input)
 
 proc `=destroy`[T](this: var GroupedSkiis[T]) =
   GroupedSkiis_destructor(this)

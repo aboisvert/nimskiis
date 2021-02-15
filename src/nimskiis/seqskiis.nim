@@ -10,23 +10,28 @@ type
     position: int #{.guard: lock.}
 
 proc SeqSkiis_destroy[T](this: var SeqSkiis[T]) =
+  #echo "SeqSkiis_destroy"
   deinitLock(this.lock)
+  this.values = @[]
 
 proc `=destroy`[T](this: var SeqSkiis[T]) =
   SeqSkiis_destroy(this)
 
-proc SeqSkiis_next2[T](this: ptr SeqSkiis[T]): Option[T] =
+proc SeqSkiis_next[T](this: ptr SeqSkiis[T]): Option[T] =
+  #echo "SeqSkiis.next"
   withLock this.lock:
-    template pos: int = this.position
+    #echo "SeqSkiis.next withLock"
+    template pos: var int = this.position
     if pos < this.values.len:
       result = some(this.values[pos])
       inc pos
     else:
       result = none(T)
+    #echo "return ", result
 
 proc SeqSkiis_next1[T](this: ptr SkiisObj[T]): Option[T] =
   let this = cast[ptr SeqSkiis[T]](this)
-  SeqSkiis_next2(this)
+  SeqSkiis_next(this)
 
 proc initSkiis*[T](values: varargs[T]): Skiis[T] =
   let this = allocShared0T(SeqSkiis[T])

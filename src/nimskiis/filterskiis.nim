@@ -6,7 +6,8 @@ type
     op: proc (t: T): bool
 
 proc FilterSkiis_destructor[T](this: var FilterSkiis[T]) =
-  discard
+  #echo "FilterSkiis_destructor"
+  `=destroy`(this.input)
 
 proc `=destroy`*[T](this: var FilterSkiis[T]) =
   FilterSkiis_destructor(this)

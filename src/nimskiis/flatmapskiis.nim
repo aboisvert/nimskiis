@@ -11,6 +11,8 @@ type
     produced: Cond
 
 proc FlatMapSkiis_destructor[T; U](this: var FlatMapSkiis[T, U]) =
+  `=destroy`(this.input)
+  `=destroy`(this.buffer)
   deinitCond(this.produced)
   deinitLock(this.lock)
 

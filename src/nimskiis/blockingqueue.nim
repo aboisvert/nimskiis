@@ -10,9 +10,11 @@
 #
 
 import
-  options,
-  locks,
-  helpers
+  std/options,
+  std/locks,
+  std/os,
+  helpers,
+  sharedptr
 
 const
   ElemsPerNode = 100
@@ -32,8 +34,10 @@ type
 
 template withLock(t, x: untyped) =
   acquire(t.lock)
-  x
-  release(t.lock)
+  try:
+    x
+  finally:
+    release(t.lock)
 
 template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
   var varName = t.head
@@ -43,7 +47,8 @@ template foreachNode[T](t: BlockingQueue[T], varName, code: untyped) =
     varName = next
 
 proc `=destroy`*[T](t: var BlockingQueue[T]) =
-  #echo "destroy call on BlockingQueueObj"
+  when defined(debugQueue):
+    echo "destroy call on BlockingQueueObj"
   if t.head != nil:
     withLock(t):
       t.foreachNode(node):
@@ -95,13 +100,22 @@ proc pop*[T](this: var BlockingQueue[T]): Option[T] =
     template last: int = head.last
     while not found:
       if head != nil and first < last:
+        when defined(debugQueue):
+          echo "pop - size before ", this.size
         found = true
-        result = some(head.elems[first])
+        result = some(head.elems[first]) # need explicit move()??
+        when defined(debugQueue):
+          let str = $result.get
+          echo "pop - result ", str
         inc(first)
         if this.size == this.maxSize:
           wasFull = true
         dec(this.size)
+        when defined(debugQueue):
+          echo "pop - size after ", this.size
         if first == last and tail != head:
+          when defined(debugQueue):
+            echo "dealloc node"
           let delete = head
           head = head.next
           deallocShared(delete)
@@ -121,21 +135,32 @@ iterator mitems*[T](this: var BlockingQueue[T]): int =
     yield x.get
     x = this.pop()
 
-proc push*[T](this: var BlockingQueue[T]; y: T): void =
+proc push*[T](this: var BlockingQueue[T]; y: sink T): void =
+  #echo "enter push ", y
   withLock(this):
+    when defined(debugQueue):
+      echo "push - ", y
+      echo "push - size before ", this.size
     if this.closed:
       raise newException(Defect, "Cannot push to a closed BlockingQueue")
     var receivedSignal = false
     while this.size >= this.maxSize and not this.closed:
+      when defined(debugQueue):
+        echo "full wait!!! ", this.size
       this.nonFull.wait(this.lock)
       receivedSignal = true
-    if receivedSignal: this.nonFull.signal() # chained broadcast
+    if receivedSignal:
+      when defined(debugQueue):
+        echo "full resume ", this.size
+      this.nonFull.signal() # chained broadcast
     if this.closed:
       raise newException(Defect, "Cannot push to a closed BlockingQueue")
 
     let sizeBefore = this.size
     var node = this.tail
     if node == nil or (node.first == 0 and node.last == ElemsPerNode):
+      when defined(debugQueue):
+        echo "alloc node"
       node = cast[type node](allocShared0(sizeof(node[])))
       node.next = nil
       node.first = 0
@@ -144,14 +169,21 @@ proc push*[T](this: var BlockingQueue[T]; y: T): void =
       this.tail = node
       if this.head == nil: this.head = node
     if node.last < ElemsPerNode:
+      #echo "before assign"
       node.elems[node.last] = y
+      #echo "after assign"
+
       inc(node.last)
     elif node.first > 0:
       dec(node.first)
+      #echo "before assign2"
       node.elems[node.first] = y
+      #echo "after assign2"
     else:
       raise newException(Defect, "WTF!")
     inc(this.size)
+    when defined(debugQueue):
+      echo "push - size after ", this.size
     if sizeBefore == 0:
       this.nonEmpty.signal()
 
